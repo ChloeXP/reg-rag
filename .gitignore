@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# Secrets / local env
+.env
+
+# macOS
+.DS_Store
+
+# Data: raw PDFs are re-downloadable via manifest (step 1); processed data is regenerated
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+
+# Local service state (Qdrant vectors, MLflow db/artifacts)
+storage/
+mlruns/

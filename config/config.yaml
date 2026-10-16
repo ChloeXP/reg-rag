@@ -1,0 +1,35 @@
+# Single source of truth for all parameters.
+# Experiments change THIS file, never the code. MLflow logs it as params.
+
+project:
+  name: reg-rag
+  seed: 42
+
+paths:
+  raw_dir: data/raw
+  processed_dir: data/processed
+  manifest: data/manifest.csv
+  prompts_dir: prompts
+
+llm:
+  base_url: http://localhost:11434   # Ollama runs natively on macOS (Metal GPU)
+  model: qwen2.5:3b                  # dev model; qwen2.5:7b for final evaluation
+  temperature: 0.0                   # deterministic answers -> reproducible eval
+  num_ctx: 8192                      # Ollama default 4096 silently truncates long RAG prompts
+  timeout_s: 180
+
+# Filled in later steps:
+chunking:
+  strategy: fixed      # fixed | article   (step 2)
+  chunk_size: 512
+  chunk_overlap: 64
+
+retrieval:
+  top_k: 5             # (step 3-4)
+
+vector_store:
+  url: http://localhost:6333
+
+mlflow:
+  tracking_uri: http://localhost:5001
+  experiment: reg-rag

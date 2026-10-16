@@ -1,0 +1,25 @@
+# Local infra for reg-rag. Ollama is NOT here: on macOS it runs natively to use the Metal GPU.
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.19.1          # pinned version, never :latest
+    container_name: reg-rag-qdrant
+    ports:
+      - "6333:6333"                       # REST API + web dashboard
+      - "6334:6334"                       # gRPC
+    volumes:
+      - ./storage/qdrant:/qdrant/storage  # persist vectors across restarts
+    restart: unless-stopped
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v3.16.1
+    container_name: reg-rag-mlflow
+    ports:
+      - "5001:5000"                       # host 5001: macOS AirPlay Receiver occupies 5000
+    volumes:
+      - ./storage/mlflow:/mlflow
+    command: >
+      mlflow server
+      --host 0.0.0.0 --port 5000
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --artifacts-destination /mlflow/artifacts
+    restart: unless-stopped
