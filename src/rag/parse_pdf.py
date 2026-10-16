@@ -18,6 +18,7 @@ from pathlib import Path
 import pymupdf
 
 from rag.config import PROJECT_ROOT, load_config
+from rag.schema import Block
 
 # A footnote starts with "(12)" (EU Official Journal) or "12 " / "12" (EBA, ACPR) or "*".
 FOOTNOTE_MARK = re.compile(r"^\s*(\(\d+\)|\d+\s|\d+$|\*)")
@@ -196,20 +197,95 @@ def footnote_numbering_gaps(footnotes: list[Footnote]) -> tuple[int, int, list[i
     return len(found), highest, [i for i in range(1, highest + 1) if i not in found]
 
 
+# ---------- 2.2c: lines -> paragraphs -> Blocks ----------
+
+# Text that ends a sentence (or a list item) - used to decide cross-page joins.
+SENTENCE_END = re.compile(r"[.;:!?\u00bb\u201d)]\s*$")
+
+
+def group_paragraphs(body: list[Line], gap_ratio: float) -> list[list[Line]]:
+    """Group body lines into paragraphs.
+
+    Same page: start a new paragraph when the vertical gap to the previous line is larger
+    than gap_ratio x the previous line's height (normal line spacing is ~0.1-0.3).
+    New page: continue the previous paragraph if it did not end a sentence
+    (a sentence cut by a page break), otherwise start a new one.
+    """
+    paragraphs: list[list[Line]] = []
+    for line in body:
+        if not paragraphs:
+            paragraphs.append([line])
+            continue
+        prev = paragraphs[-1][-1]
+        if line.page == prev.page:
+            is_new = (line.y0 - prev.y1) > gap_ratio * (prev.y1 - prev.y0)
+        else:
+            is_new = bool(SENTENCE_END.search(prev.text))
+        if is_new:
+            paragraphs.append([line])
+        else:
+            paragraphs[-1].append(line)
+    return paragraphs
+
+
+def join_lines(lines: list[Line]) -> str:
+    """Join the lines of one paragraph into one string.
+
+    A line ending with "-" is glued to the next line WITHOUT a space but KEEPING the hyphen:
+    in these PDFs every line-final hyphen is a real compound ("risk-|based",
+    "non-|executive", "sous-|traitance"); there is no typographic word splitting, so the
+    usual "remove the hyphen" rule would corrupt words ("riskbased").
+    """
+    text = ""
+    for line in lines:
+        part = line.text.strip()
+        if not text:
+            text = part
+        elif text.endswith("-"):
+            text += part
+        else:
+            text += " " + part
+    return " ".join(text.split())  # collapse repeated spaces
+
+
+def parse_pdf(path: Path, cfg: dict) -> tuple[list[Block], dict]:
+    """Raw PDF -> Blocks (body paragraphs, then footnotes) + cleaning stats."""
+    doc_id = path.stem
+    body, footnotes, stats = clean_document(path, cfg)
+    paragraphs = group_paragraphs(body, cfg["parsing"]["paragraph_gap_ratio"])
+
+    blocks: list[Block] = []
+    for para in paragraphs:
+        # page = page where the paragraph starts (a paragraph may continue on the next page)
+        blocks.append(Block(doc_id, len(blocks), join_lines(para), "body", page=para[0].page))
+    for note in footnotes:
+        blocks.append(Block(doc_id, len(blocks), note.text, "footnote", page=note.page))
+
+    stats["paragraphs"] = len(paragraphs)
+    stats["cross_page_paragraphs"] = sum(p[0].page != p[-1].page for p in paragraphs)
+    return blocks, stats
+
+
 def main() -> None:
-    """Debug: per PDF, show what was removed / extracted, plus two sample footnotes."""
+    """Debug: per PDF, show cleaning stats, footnote numbering check and sample paragraphs."""
     cfg = load_config()
     for path in sorted((PROJECT_ROOT / cfg["paths"]["raw_dir"]).glob("*.pdf")):
-        _body, footnotes, s = clean_document(path, cfg)
-        n_found, highest, missing = footnote_numbering_gaps(footnotes)
+        blocks, s = parse_pdf(path, cfg)
+        body = [b for b in blocks if b.kind == "body"]
+        notes = [Footnote(b.page, b.text) for b in blocks if b.kind == "footnote"]
+        n_found, highest, missing = footnote_numbering_gaps(notes)
+        lengths = sorted(len(b.text) for b in body)
         print(
-            f"\n=== {path.stem} === pages={s['pages']} lines={s['lines']} "
-            f"boilerplate=-{s['boilerplate']} footnotes={s['footnotes']} "
-            f"({s['footnote_lines']} lines) body_lines={s['body_lines']}"
+            f"\n=== {path.stem} === pages={s['pages']} boilerplate=-{s['boilerplate']} "
+            f"paragraphs={s['paragraphs']} (cross-page={s['cross_page_paragraphs']}) "
+            f"footnotes={len(notes)}"
         )
-        print(f"  numbering check: {n_found}/{highest} found, missing={missing}")
-        for note in footnotes[:: max(1, len(footnotes) // 2)][:2]:
-            print(f"  p.{note.page:<3} {note.text[:90]!r}")
+        print(
+            f"  paragraph chars: median={lengths[len(lengths) // 2]} max={lengths[-1]}  "
+            f"footnote numbering: {n_found}/{highest} missing={missing}"
+        )
+        for b in body[len(body) // 3 :: max(1, len(body) // 3)][:2]:
+            print(f"  p.{b.page:<3} {b.text[:100]!r}")
 
 
 if __name__ == "__main__":
