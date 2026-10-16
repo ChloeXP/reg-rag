@@ -21,9 +21,11 @@ llm:
 
 # Filled in later steps:
 chunking:
-  strategy: fixed      # fixed | article   (step 2)
-  chunk_size: 512
-  chunk_overlap: 64
+  strategy: fixed      # fixed | structure   (step 2)
+  tokenizer: BAAI/bge-m3   # count tokens with the embedding model's own tokenizer
+  chunk_size: 512      # tokens
+  chunk_overlap: 64    # tokens shared by two consecutive fixed chunks
+  include_footnotes: false  # decision 2.2b-C: footnotes kept as blocks, off by default
 
 retrieval:
   top_k: 5             # (step 3-4)
