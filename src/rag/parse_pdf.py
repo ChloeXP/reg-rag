@@ -20,6 +20,7 @@ import yaml
 
 from rag.config import PROJECT_ROOT, load_config
 from rag.schema import Block
+from rag.structure import Para, assign_structure
 
 # A footnote starts with "(12)" (EU Official Journal) or "12 " / "12" (EBA, ACPR) or "*".
 FOOTNOTE_MARK = re.compile(r"^\s*(\(\d+\)|\d+\s|\d+$|\*)")
@@ -362,11 +363,15 @@ def parse_pdf(path: Path, cfg: dict) -> tuple[list[Block], dict]:
     heads = [is_heading(line, body_size, gap) for line in body]
     paragraphs = group_paragraphs(body, cfg["parsing"]["paragraph_gap_ratio"], heads)
 
+    # 2.4c: place every paragraph in the document structure (kind, article, section)
+    paras = [Para(join_lines(p), head, max(ln.size for ln in p)) for p, head in paragraphs]
+    doc_type = load_sources(cfg).get(doc_id, {}).get("doc_type", "")
+    places = assign_structure(paras, doc_type)
+
     blocks: list[Block] = []
-    for para, head in paragraphs:
+    for (lines, _), para, (kind, article, section) in zip(paragraphs, paras, places, strict=True):
         # page = page where the paragraph starts (a paragraph may continue on the next page)
-        kind = "title" if head else "body"
-        blocks.append(Block(doc_id, len(blocks), join_lines(para), kind, page=para[0].page))
+        blocks.append(Block(doc_id, len(blocks), para.text, kind, lines[0].page, article, section))
     for note in footnotes:
         blocks.append(Block(doc_id, len(blocks), note.text, "footnote", page=note.page))
 
@@ -377,32 +382,33 @@ def parse_pdf(path: Path, cfg: dict) -> tuple[list[Block], dict]:
 
 
 def main() -> None:
-    """Debug: per PDF, show cleaning stats, footnote numbering check and sample paragraphs."""
+    """Debug: per PDF, structure check (2.4c) - kinds, recitals, articles, sample sections."""
     cfg = load_config()
     for path in sorted((PROJECT_ROOT / cfg["paths"]["raw_dir"]).glob("*.pdf")):
         blocks, s = parse_pdf(path, cfg)
-        body = [b for b in blocks if b.kind == "body"]
-        notes = [Footnote(b.page, b.text) for b in blocks if b.kind == "footnote"]
-        n_found, highest, missing = footnote_numbering_gaps(notes)
-        lengths = sorted(len(b.text) for b in body)
-        print(
-            f"\n=== {path.stem} === pages={s['pages']} boilerplate=-{s['boilerplate']} "
-            f"paragraphs={s['paragraphs']} (cross-page={s['cross_page_paragraphs']}) "
-            f"footnotes={len(notes)}"
-        )
-        if s["skipped_pages"]:
-            print(f"  skipped {s['skipped_pages']} pages, each range starts with:")
-            for page, text in s["skip_starts"].items():
-                print(f"    p.{page:<4} {text[:70]!r}")
-        print(
-            f"  paragraph chars: median={lengths[len(lengths) // 2]} max={lengths[-1]}  "
-            f"footnote numbering: {n_found}/{highest} missing={missing}"
-        )
-        titles = [b for b in blocks if b.kind == "title"]
-        n_articles = sum(bool(re.match(r"Article (\d+|premier)\b", b.text)) for b in titles)
-        print(f"  headings={len(titles)} (body font {s['body_size']}) articles={n_articles}")
-        for b in titles[len(titles) // 4 :: max(1, len(titles) // 4)][:4]:
-            print(f"    p.{b.page:<3} {b.text[:90]!r}")
+        kinds = Counter(b.kind for b in blocks)
+        print(f"\n=== {path.stem} === pages={s['pages']} blocks={len(blocks)} {dict(kinds)}")
+        recitals = [
+            int(m.group(1))
+            for b in blocks
+            if (m := re.match(r"\((\d+)\)", b.text)) and b.kind == "recital"
+        ]
+        if recitals:
+            missing = [i for i in range(1, max(recitals) + 1) if i not in recitals]
+            print(f"  recitals: {len(recitals)} numbered 1..{max(recitals)}, missing={missing}")
+        labels = {b.article for b in blocks if b.kind == "title" and b.article}
+        with_body = {b.article for b in blocks if b.kind == "article"}
+        if labels:
+            print(
+                f"  articles: {len(labels)} headings, {len(with_body)} with body text, "
+                f"headings without body={sorted(labels - with_body, key=int)}"
+            )
+        content = [b for b in blocks if b.kind in ("body", "article", "annex")]
+        located = sum(1 for b in content if b.section or b.article)
+        print(f"  content blocks with a section/article: {located}/{len(content)}")
+        for b in content[len(content) // 2 : len(content) // 2 + 1]:
+            print(f"  e.g. [{b.kind}] article={b.article} section={(b.section or '')[:70]!r}")
+            print(f"       {b.text[:80]!r}")
 
 
 if __name__ == "__main__":
