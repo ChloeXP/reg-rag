@@ -1,0 +1,110 @@
+# Hand-curated list of source documents (the "wish list").
+# The download script reads this file and generates data/manifest.csv (what we actually got).
+# doc_id = one file / one language; work_id = same legal text across languages.
+# method: http (default) | cellar (EU Publications Office API, by CELEX id) | manual (browser)
+# format: pdf (default) | xhtml
+
+sources:
+  - doc_id: ai_act_fr
+    work_id: ai_act
+    title: "Règlement (UE) 2024/1689 sur l'intelligence artificielle (AI Act)"
+    publisher: EUR-Lex
+    doc_type: regulation
+    language: fr
+    published: 2024-07-12
+    method: cellar        # EUR-Lex website blocks scripts (HTTP 202 challenge)
+    celex: "32024R1689"
+    url: "https://eur-lex.europa.eu/legal-content/FR/TXT/PDF/?uri=CELEX:32024R1689"
+
+  - doc_id: ai_act_en
+    work_id: ai_act
+    title: "Regulation (EU) 2024/1689 laying down harmonised rules on artificial intelligence (AI Act)"
+    publisher: EUR-Lex
+    doc_type: regulation
+    language: en
+    published: 2024-07-12
+    method: cellar        # EUR-Lex website blocks scripts (HTTP 202 challenge)
+    celex: "32024R1689"
+    url: "https://eur-lex.europa.eu/legal-content/EN/TXT/PDF/?uri=CELEX:32024R1689"
+
+  - doc_id: dora_fr
+    work_id: dora
+    title: "Règlement (UE) 2022/2554 sur la résilience opérationnelle numérique (DORA)"
+    publisher: EUR-Lex
+    doc_type: regulation
+    language: fr
+    published: 2022-12-27
+    method: cellar        # EUR-Lex website blocks scripts (HTTP 202 challenge)
+    celex: "32022R2554"
+    url: "https://eur-lex.europa.eu/legal-content/FR/TXT/PDF/?uri=CELEX:32022R2554"
+
+  - doc_id: crr_en
+    work_id: crr
+    title: "Regulation (EU) No 575/2013 on prudential requirements for credit institutions (CRR)"
+    publisher: EUR-Lex
+    doc_type: regulation
+    language: en
+    published: 2013-06-27
+    method: cellar        # EUR-Lex website blocks scripts (HTTP 202 challenge)
+    celex: "32013R0575"
+    format: xhtml         # CELLAR has no PDF manifestation for this 2013 act (HTTP 404)
+    url: "https://eur-lex.europa.eu/legal-content/EN/TXT/PDF/?uri=CELEX:32013R0575"
+    notes: "Original 2013 text, NOT the consolidated version. Amended since by CRR2 (2019/876) and CRR3 (2024/1623)."
+
+  - doc_id: eba_gl_internal_governance_en
+    work_id: eba_gl_2021_05
+    title: "EBA Final Report - Guidelines on internal governance under Directive 2013/36/EU (EBA/GL/2021/05)"
+    publisher: EBA
+    doc_type: guideline
+    language: en
+    published: 2021-07-02
+    url: "https://www.eba.europa.eu/sites/default/files/document_library/Publications/Guidelines/2021/1016721/Final%20report%20on%20Guidelines%20on%20internal%20governance%20under%20CRD.pdf"
+    notes: "A further revision was under consultation in 2025. A French translation exists (possible future FR/EN pair)."
+
+  - doc_id: eba_gl_ict_security_en
+    work_id: eba_gl_2019_04
+    title: "EBA Guidelines on ICT and security risk management (EBA/GL/2019/04)"
+    publisher: EBA
+    doc_type: guideline
+    language: en
+    published: 2019-11-28
+    url: "https://www.eba.europa.eu/sites/default/documents/files/documents/10180/2522896/32a28233-12f5-49c8-9bb5-f8744ccb4e92/Final%20Guidelines%20on%20ICT%20and%20security%20risk%20management.pdf"
+    notes: "Being amended by the EBA in the context of DORA application."
+
+  - doc_id: eba_gl_outsourcing_en
+    work_id: eba_gl_2019_02
+    title: "EBA Guidelines on outsourcing arrangements (EBA/GL/2019/02)"
+    publisher: EBA
+    doc_type: guideline
+    language: en
+    published: 2019-02-25
+    url: "https://www.eba.europa.eu/sites/default/files/documents/10180/2551996/38c80601-f5d7-4855-8ba3-702423665479/EBA%20revised%20Guidelines%20on%20outsourcing%20arrangements.pdf"
+
+  - doc_id: eba_gl_loan_origination_en
+    work_id: eba_gl_2020_06
+    title: "EBA Final Report - Guidelines on loan origination and monitoring (EBA/GL/2020/06)"
+    publisher: EBA
+    doc_type: guideline
+    language: en
+    published: 2020-05-29
+    url: "https://www.eba.europa.eu/sites/default/files/document_library/Publications/Guidelines/2020/Guidelines%20on%20loan%20origination%20and%20monitoring/884283/EBA%20GL%202020%2006%20Final%20Report%20on%20GL%20on%20loan%20origination%20and%20monitoring.pdf"
+
+  - doc_id: eba_ml_irb_report_en
+    work_id: eba_ml_irb_2023
+    title: "EBA Follow-up report on the use of machine learning for internal ratings-based models"
+    publisher: EBA
+    doc_type: report
+    language: en
+    published: 2023-08-04
+    url: "https://eba.europa.eu/sites/default/files/document_library/Publications/Reports/2023/1061483/Follow-up%20report%20on%20machine%20learning%20for%20IRB%20models.pdf"
+
+  - doc_id: acpr_ia_gouvernance_fr
+    work_id: acpr_ia_2020
+    title: "ACPR - Gouvernance des algorithmes d'intelligence artificielle dans le secteur financier (document de réflexion)"
+    publisher: ACPR
+    doc_type: discussion_paper
+    language: fr
+    published: 2020-06-12
+    method: manual        # site refuses scripts (HTTP 403): download in a browser
+    url: "https://acpr.banque-france.fr/fr/publications-et-statistiques/publications/gouvernance-des-algorithmes-dintelligence-artificielle-dans-le-secteur-financier"
+    notes: "PDF saved manually from this publication page (downloaded file name: 20200612_gouvernance_evaluation_ia_pdf.pdf). Old direct PDF link returns 403; old mirror returns 302."
