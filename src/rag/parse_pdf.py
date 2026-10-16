@@ -33,6 +33,8 @@ class Line:
     page_height: float
     text: str
     size: float  # largest font size on the line (useful for headings, footnotes)
+    bold: bool = False  # every span on the line is bold
+    italic: bool = False  # every span on the line is italic
 
 
 @dataclass(frozen=True)
@@ -57,7 +59,11 @@ def iter_lines(doc: pymupdf.Document) -> Iterator[Line]:
                     continue
                 _x0, y0, _x1, y1 = line["bbox"]
                 size = max(span["size"] for span in line["spans"])
-                yield Line(page.number + 1, y0, y1, height, text, size)
+                spans = [s for s in line["spans"] if s["text"].strip()]
+                # flag bit 16 = bold; some PDFs only say it in the font name
+                bold = all(s["flags"] & 16 or "Bold" in s["font"] for s in spans)
+                italic = all(s["flags"] & 2 for s in spans)  # flag bit 2 = italic
+                yield Line(page.number + 1, y0, y1, height, text, size, bold, italic)
 
 
 def pattern(text: str) -> str:
@@ -237,35 +243,91 @@ def footnote_numbering_gaps(footnotes: list[Footnote]) -> tuple[int, int, list[i
     return len(found), highest, [i for i in range(1, highest + 1) if i not in found]
 
 
+# ---------- 2.4b: headings ----------
+
+# A full line that is a structural label in EU legal texts (EN + FR). Whole line only (P11).
+LABEL = re.compile(
+    r"(Article\s+(\d+|premier)|(CHAPTER|CHAPITRE|TITLE|TITRE|SECTION|Section)\s+[IVXLC\d]+"
+    r"|ANNEXE?(\s+[IVXLC]+)?)"
+)
+# A line that OPENS a new heading (vs. the 2nd line of a multi-line heading)
+HEADING_START = re.compile(r"\d+(\.\d+)*\.?\s*[A-ZÀ-Ý]|\d+(\.\d+)*\.?$|(Title|Annex)\s+\w+")
+
+
+def body_size_of(lines: list[Line]) -> float:
+    """Font size carrying the most characters in the whole document = body text size."""
+    chars: Counter[float] = Counter()
+    for line in lines:
+        chars[round(line.size, 1)] += len(line.text)
+    return chars.most_common(1)[0][0]
+
+
+def is_label(line: Line) -> bool:
+    """EU Official Journal structural label = the WHOLE line ("Article 6", "CHAPTER III").
+
+    "Article N" must also be in italics: it is the one label that constantly appears as a
+    cross-reference, and can land alone on a line when text wraps (AI Act Annex VIII) or
+    when justified EBA text is split ("Article 131"). Official article labels are italic.
+    """
+    text = line.text.strip()
+    if not LABEL.fullmatch(text):
+        return False
+    return line.italic or not text.startswith("Article")
+
+
+def is_heading(line: Line, body_size: float, size_gap: float) -> bool:
+    """Heading = an EU structural label, OR clearly bigger than body text, OR a short bold line.
+
+    Three signals because publishers differ: EU Official Journal uses italic labels
+    ("Article 6") + bold titles; EBA uses bigger blue fonts; ACPR uses bold Arial.
+    """
+    if len(line.text.strip()) > 150:
+        return False
+    return is_label(line) or line.size >= body_size + size_gap or line.bold
+
+
+def opens_heading(line: Line) -> bool:
+    return is_label(line) or bool(HEADING_START.match(line.text.strip()))
+
+
 # ---------- 2.2c: lines -> paragraphs -> Blocks ----------
 
 # Text that ends a sentence (or a list item) - used to decide cross-page joins.
 SENTENCE_END = re.compile(r"[.;:!?\u00bb\u201d)]\s*$")
 
 
-def group_paragraphs(body: list[Line], gap_ratio: float) -> list[list[Line]]:
-    """Group body lines into paragraphs.
+def group_paragraphs(
+    body: list[Line], gap_ratio: float, heads: list[bool]
+) -> list[tuple[list[Line], bool]]:
+    """Group body lines into (paragraph lines, is_heading) pairs.
 
     Same page: start a new paragraph when the vertical gap to the previous line is larger
     than gap_ratio x the previous line's height (normal line spacing is ~0.1-0.3).
-    New page: continue the previous paragraph if it did not end a sentence
-    (a sentence cut by a page break), otherwise start a new one.
+    New page: continue the previous paragraph if it did not end a sentence.
+    Headings (2.4b) never merge with body text; consecutive heading lines merge
+    ("Article 1" + "Subject matter") unless the new line opens a new heading.
     """
-    paragraphs: list[list[Line]] = []
-    for line in body:
+    paragraphs: list[tuple[list[Line], bool]] = []
+    for line, head in zip(body, heads, strict=True):
         if not paragraphs:
-            paragraphs.append([line])
+            paragraphs.append(([line], head))
             continue
-        prev = paragraphs[-1][-1]
-        if line.page == prev.page:
+        prev_lines, prev_head = paragraphs[-1]
+        prev = prev_lines[-1]
+        if head or prev_head:
+            is_new = not (head and prev_head and not opens_heading(line))
+        elif line.page == prev.page:
             is_new = (line.y0 - prev.y1) > gap_ratio * (prev.y1 - prev.y0)
         else:
             is_new = bool(SENTENCE_END.search(prev.text))
         if is_new:
-            paragraphs.append([line])
+            paragraphs.append(([line], head))
         else:
-            paragraphs[-1].append(line)
+            prev_lines.append(line)
     return paragraphs
+
+
+NUMBER_GLUED = re.compile(r"^(\d+(?:\.\d+)*\.?)(?=[A-Za-zÀ-ÿ])")
 
 
 def join_lines(lines: list[Line]) -> str:
@@ -285,7 +347,9 @@ def join_lines(lines: list[Line]) -> str:
             text += part
         else:
             text += " " + part
-    return " ".join(text.split())  # collapse repeated spaces
+    text = " ".join(text.split())  # collapse repeated spaces
+    # EBA PDFs lose the space after numbers: '63.Institutions', '12.2Risk' -> add it back
+    return NUMBER_GLUED.sub(r"\1 ", text)
 
 
 def parse_pdf(path: Path, cfg: dict) -> tuple[list[Block], dict]:
@@ -293,17 +357,22 @@ def parse_pdf(path: Path, cfg: dict) -> tuple[list[Block], dict]:
     doc_id = path.stem
     skip = parse_page_ranges(load_sources(cfg).get(doc_id, {}).get("skip_pages"))
     body, footnotes, stats = clean_document(path, cfg, skip)
-    paragraphs = group_paragraphs(body, cfg["parsing"]["paragraph_gap_ratio"])
+    body_size = body_size_of(body)
+    gap = cfg["parsing"]["heading_size_gap"]
+    heads = [is_heading(line, body_size, gap) for line in body]
+    paragraphs = group_paragraphs(body, cfg["parsing"]["paragraph_gap_ratio"], heads)
 
     blocks: list[Block] = []
-    for para in paragraphs:
+    for para, head in paragraphs:
         # page = page where the paragraph starts (a paragraph may continue on the next page)
-        blocks.append(Block(doc_id, len(blocks), join_lines(para), "body", page=para[0].page))
+        kind = "title" if head else "body"
+        blocks.append(Block(doc_id, len(blocks), join_lines(para), kind, page=para[0].page))
     for note in footnotes:
         blocks.append(Block(doc_id, len(blocks), note.text, "footnote", page=note.page))
 
     stats["paragraphs"] = len(paragraphs)
-    stats["cross_page_paragraphs"] = sum(p[0].page != p[-1].page for p in paragraphs)
+    stats["cross_page_paragraphs"] = sum(p[0].page != p[-1].page for p, _ in paragraphs)
+    stats["body_size"] = body_size
     return blocks, stats
 
 
@@ -329,8 +398,11 @@ def main() -> None:
             f"  paragraph chars: median={lengths[len(lengths) // 2]} max={lengths[-1]}  "
             f"footnote numbering: {n_found}/{highest} missing={missing}"
         )
-        for b in body[len(body) // 3 :: max(1, len(body) // 3)][:2]:
-            print(f"  p.{b.page:<3} {b.text[:100]!r}")
+        titles = [b for b in blocks if b.kind == "title"]
+        n_articles = sum(bool(re.match(r"Article (\d+|premier)\b", b.text)) for b in titles)
+        print(f"  headings={len(titles)} (body font {s['body_size']}) articles={n_articles}")
+        for b in titles[len(titles) // 4 :: max(1, len(titles) // 4)][:4]:
+            print(f"    p.{b.page:<3} {b.text[:90]!r}")
 
 
 if __name__ == "__main__":
