@@ -5,6 +5,11 @@ windows of `chunk_size` tokens with `chunk_overlap` tokens shared between neighb
 Tokens are counted with the embedding model's own tokenizer (BAAI/bge-m3, decision 2.5-A).
 It ignores structure on purpose: it is the baseline the structure strategy must beat.
 
+2.6 structure strategy (decision 2.6-B): one legal unit (article, recital, annex part,
+guideline section) never shares a chunk with another unit. A unit longer than
+`chunk_size` is split at paragraph boundaries; every chunk starts with a context header
+"[CRR · Article 92 Own funds requirements]" so a split-off part still says what it is.
+
 Debug run: uv run python -m rag.chunking
 """
 
@@ -123,36 +128,142 @@ def fixed_chunks(blocks: list[Block], meta: dict, cfg: dict) -> list[Chunk]:
     return chunks
 
 
+# ---------- 2.6: structure strategy ----------
+
+
+def unit_key(b: Block) -> tuple:
+    """Which legal unit a block belongs to. Consecutive blocks with the same key = one unit."""
+    if b.article:
+        return ("article", b.article)
+    if b.kind == "recital":
+        return ("recital", b.order)  # every recital is its own unit
+    if b.kind == "annex":
+        return ("annex", b.section)
+    return ("section", b.section)  # guidelines/reports: the heading path; None = preamble
+
+
+def units_of(blocks: list[Block]) -> list[list[Block]]:
+    """Group content blocks into units, in reading order. Structural headings (chapter,
+    section, EBA titles) are not content: they live in the section path / header."""
+    units: list[list[Block]] = []
+    for b in blocks:
+        if b.kind == "title" and not b.article:
+            continue
+        if units and unit_key(units[-1][-1]) == unit_key(b):
+            units[-1].append(b)
+        else:
+            units.append([b])
+    return units
+
+
+def unit_header(unit: list[Block], meta: dict) -> str:
+    """Context header written at the top of every chunk of the unit."""
+    doc = meta["work_id"].replace("_", " ").upper()
+    first = unit[0]
+    if first.article:
+        title = next((b.text for b in unit if b.kind == "title"), f"Article {first.article}")
+        return f"[{doc} · {title}]"
+    if first.kind == "recital":
+        num = first.text.split(")")[0].lstrip("(")
+        word = "Considérant" if meta["language"] == "fr" else "Recital"
+        return f"[{doc} · {word} {num}]"
+    path = (first.section or "").split(" > ")[-2:]  # last two levels are enough
+    return f"[{doc} · {' > '.join(path)}]" if path != [""] else f"[{doc}]"
+
+
+def pack_unit(unit: list[Block], header: str, cfg: dict) -> list[tuple[str, list[Block]]]:
+    """Greedy packing of a unit's paragraphs into chunks of at most chunk_size tokens,
+    cutting only between paragraphs. A single paragraph that is too long is cut with the
+    fixed token window (the only case where a cut can fall inside a paragraph)."""
+    limit = cfg["chunking"]["chunk_size"]
+    body = [b for b in unit if not (b.kind == "title" and b.article)]  # title is in header
+    if not body:
+        body = unit
+    pieces: list[tuple[str, list[Block]]] = []
+    current: list[Block] = []
+
+    def text_of(blocks: list[Block]) -> str:
+        return header + "\n" + "\n".join(b.text for b in blocks)
+
+    for b in body:
+        if count_tokens(text_of([*current, b]), cfg) <= limit:
+            current.append(b)
+            continue
+        if current:
+            pieces.append((text_of(current), current))
+            current = []
+        if count_tokens(text_of([b]), cfg) <= limit:
+            current = [b]
+            continue
+        # one paragraph alone is too long: token windows inside it, header on each part.
+        # Re-tokenizing "header + part" can add a token or two at the join (or around table
+        # line breaks), so shrink the window until every part fits.
+        room = limit - count_tokens(header + "\n", cfg)
+        while True:
+            sub_cfg = {**cfg, "chunking": {**cfg["chunking"], "chunk_size": room}}
+            parts = [header + "\n" + t for t, _, _ in fixed_windows([b], sub_cfg)]
+            if all(count_tokens(p, cfg) <= limit for p in parts):
+                break
+            room -= 4
+        pieces.extend((p, [b]) for p in parts)
+    if current:
+        pieces.append((text_of(current), current))
+    return pieces
+
+
+def structure_chunks(blocks: list[Block], meta: dict, cfg: dict) -> list[Chunk]:
+    chunks: list[Chunk] = []
+    for unit in units_of(content_blocks(blocks, cfg)):
+        header = unit_header(unit, meta)
+        for text, covered in pack_unit(unit, header, cfg):
+            assert len({unit_key(b) for b in covered}) == 1, "a chunk must hold ONE unit"
+            pages = [b.page for b in covered if b.page is not None]
+            first = covered[0]
+            index = len(chunks)
+            chunks.append(
+                Chunk(
+                    chunk_id=make_chunk_id(meta["doc_id"], "structure", index),
+                    doc_id=meta["doc_id"],
+                    work_id=meta["work_id"],
+                    language=meta["language"],
+                    doc_type=meta["doc_type"],
+                    format=meta["format"],
+                    strategy="structure",
+                    index=index,
+                    text=text,
+                    n_tokens=count_tokens(text, cfg),
+                    kind=first.kind,
+                    page_start=min(pages) if pages else None,
+                    page_end=max(pages) if pages else None,
+                    article=first.article,  # exact: a structure chunk never spans 2 articles
+                    section=first.section,
+                )
+            )
+    return chunks
+
+
 def main() -> None:
-    """Debug: per document, token and chunk stats + how often a fixed chunk mixes articles."""
+    """Debug: fixed vs structure, per document; then a look at CRR Article 92."""
     cfg = load_config()
     manifest = load_manifest(cfg)
     raw = PROJECT_ROOT / cfg["paths"]["raw_dir"]
-    totals: dict[str, int] = {}
+    limit = cfg["chunking"]["chunk_size"]
+    print(f"{'doc_id':30} {'fixed':>6} {'struct':>6} {'median tok':>10} {'>limit':>6}")
     for doc_id, meta in manifest.items():
-        blocks = content_blocks(load_blocks(raw / meta["filename"], cfg), cfg)
-        windows = fixed_windows(blocks, cfg)
-        totals[doc_id] = sum(count_tokens(b.text, cfg) for b in blocks)
-        has_articles = any(b.article for b in blocks)
-        mixed = sum(len({b.article for b in cov if b.article}) > 1 for _, cov, _ in windows)
-        sizes = [n for _, _, n in windows]
-        print(
-            f"{doc_id:30} tokens={totals[doc_id]:>7} chunks={len(windows):>4} "
-            f"min/max={min(sizes)}/{max(sizes)}"
-            + (f"  chunks mixing 2+ articles={mixed}/{len(windows)}" if has_articles else "")
-        )
-    en, fr = totals.get("ai_act_en"), totals.get("ai_act_fr")
-    if en and fr:
-        print(f"\nAI Act tokens: EN={en}  FR={fr}  FR/EN={fr / en:.2f}")
+        blocks = load_blocks(raw / meta["filename"], cfg)
+        n_fixed = len(fixed_windows(content_blocks(blocks, cfg), cfg))
+        chunks = structure_chunks(blocks, meta, cfg)
+        sizes = sorted(c.n_tokens for c in chunks)
+        over = sum(n > limit for n in sizes)
+        print(f"{doc_id:30} {n_fixed:>6} {len(chunks):>6} {sizes[len(sizes) // 2]:>10} {over:>6}")
 
-    meta = manifest["ai_act_en"]
-    sample = fixed_chunks(load_blocks(raw / meta["filename"], cfg), meta, cfg)[120]
-    print(
-        f"\nsample {sample.chunk_id}: {sample.n_tokens} tokens, pages "
-        f"{sample.page_start}-{sample.page_end}, starts in article {sample.article}"
-    )
-    print(f"  starts: {sample.text[:110]!r}")
-    print(f"  ends:   {sample.text[-110:]!r}")
+    meta = manifest["crr_en"]
+    chunks = structure_chunks(load_blocks(raw / meta["filename"], cfg), meta, cfg)
+    art92 = [c for c in chunks if c.article == "92"]
+    art4 = [c for c in chunks if c.article == "4"]
+    print(f"\nCRR Article 4 (definitions) -> {len(art4)} chunks; Article 92 -> {len(art92)}")
+    print(f"--- {art92[0].chunk_id} ({art92[0].n_tokens} tokens) ---")
+    print(art92[0].text[:700])
 
 
 if __name__ == "__main__":
