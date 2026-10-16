@@ -6,6 +6,7 @@ project:
   seed: 42
 
 paths:
+  sources: data/sources.yaml
   raw_dir: data/raw
   processed_dir: data/processed
   manifest: data/manifest.csv

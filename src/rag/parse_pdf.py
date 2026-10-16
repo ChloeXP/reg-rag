@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pymupdf
+import yaml
 
 from rag.config import PROJECT_ROOT, load_config
 from rag.schema import Block
@@ -146,19 +147,56 @@ def group_footnotes(lines: list[Line]) -> list[Footnote]:
     return notes
 
 
+# ---------- 2.4a: declared page exclusions (sources.yaml) ----------
+
+
+def parse_page_ranges(spec: str | None) -> set[int]:
+    """'2, 30-129' -> {2, 30, 31, ..., 129}. 1-based, inclusive. None/'' -> empty set."""
+    pages: set[int] = set()
+    for part in (spec or "").split(","):
+        part = part.strip()
+        if not part:
+            continue
+        start, _, end = part.partition("-")
+        pages.update(range(int(start), int(end or start) + 1))
+    return pages
+
+
+def load_sources(cfg: dict) -> dict[str, dict]:
+    """doc_id -> its entry in data/sources.yaml (the hand-curated registry)."""
+    path = PROJECT_ROOT / cfg["paths"]["sources"]
+    entries = yaml.safe_load(path.read_text(encoding="utf-8"))["sources"]
+    return {e["doc_id"]: e for e in entries}
+
+
 # ---------- cleaning pipeline for one document ----------
 
 
-def clean_document(path: Path, cfg: dict) -> tuple[list[Line], list[Footnote], dict]:
-    """Return (body lines, footnotes, stats) for one PDF."""
+def clean_document(
+    path: Path, cfg: dict, skip: set[int] | None = None
+) -> tuple[list[Line], list[Footnote], dict]:
+    """Return (body lines, footnotes, stats) for one PDF, ignoring the `skip` pages."""
     band = cfg["parsing"]["edge_band_pt"]
     gap = cfg["parsing"]["footnote_size_gap"]
     with pymupdf.open(path) as doc:
         n_pages = doc.page_count
         lines = list(iter_lines(doc))
 
+    skip = skip or set()
+    if skip and max(skip) > n_pages:
+        raise ValueError(f"{path.name}: skip_pages goes to {max(skip)} but the PDF has {n_pages}")
+
+    # Headers/footers are detected on ALL pages (they repeat on skipped pages too)
     boilerplate = find_boilerplate(lines, n_pages, cfg)
     kept = [ln for ln in lines if not is_boilerplate(ln, boilerplate, band)]
+
+    # First real line of each skipped range, so a human can check the cut is in the right place
+    starts = sorted(p for p in skip if p - 1 not in skip)
+    first_line = {p: next((ln.text.strip() for ln in kept if ln.page == p), "") for p in starts}
+    kept = [ln for ln in kept if ln.page not in skip]
+    n_boilerplate = sum(1 for ln in lines if ln.page not in skip) - len(kept)
+    lines = [ln for ln in lines if ln.page not in skip]
+    n_pages -= len(skip)
 
     by_page: dict[int, list[Line]] = defaultdict(list)
     for line in kept:
@@ -173,9 +211,11 @@ def clean_document(path: Path, cfg: dict) -> tuple[list[Line], list[Footnote], d
 
     footnotes = group_footnotes(footnote_lines)
     stats = {
-        "pages": n_pages,
+        "pages": n_pages,  # pages kept
+        "skipped_pages": len(skip),
+        "skip_starts": first_line,
         "lines": len(lines),
-        "boilerplate": len(lines) - len(kept),
+        "boilerplate": n_boilerplate,
         "footnote_lines": len(footnote_lines),
         "footnotes": len(footnotes),
         "body_lines": len(body),
@@ -251,7 +291,8 @@ def join_lines(lines: list[Line]) -> str:
 def parse_pdf(path: Path, cfg: dict) -> tuple[list[Block], dict]:
     """Raw PDF -> Blocks (body paragraphs, then footnotes) + cleaning stats."""
     doc_id = path.stem
-    body, footnotes, stats = clean_document(path, cfg)
+    skip = parse_page_ranges(load_sources(cfg).get(doc_id, {}).get("skip_pages"))
+    body, footnotes, stats = clean_document(path, cfg, skip)
     paragraphs = group_paragraphs(body, cfg["parsing"]["paragraph_gap_ratio"])
 
     blocks: list[Block] = []
@@ -280,6 +321,10 @@ def main() -> None:
             f"paragraphs={s['paragraphs']} (cross-page={s['cross_page_paragraphs']}) "
             f"footnotes={len(notes)}"
         )
+        if s["skipped_pages"]:
+            print(f"  skipped {s['skipped_pages']} pages, each range starts with:")
+            for page, text in s["skip_starts"].items():
+                print(f"    p.{page:<4} {text[:70]!r}")
         print(
             f"  paragraph chars: median={lengths[len(lengths) // 2]} max={lengths[-1]}  "
             f"footnote numbering: {n_found}/{highest} missing={missing}"

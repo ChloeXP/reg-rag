@@ -52,6 +52,8 @@ sources:
     notes: "Original 2013 text, NOT the consolidated version. Amended since by CRR2 (2019/876) and CRR3 (2024/1623)."
 
   - doc_id: eba_gl_internal_governance_en
+    skip_pages: "2-3, 65-93"     # 1-based, inclusive (valid for the sha256 in manifest.csv)
+    skip_reason: "table of contents; accompanying documents (cost-benefit analysis + consultation feedback)"
     work_id: eba_gl_2021_05
     title: "EBA Final Report - Guidelines on internal governance under Directive 2013/36/EU (EBA/GL/2021/05)"
     publisher: EBA
@@ -62,6 +64,8 @@ sources:
     notes: "A further revision was under consultation in 2025. A French translation exists (possible future FR/EN pair)."
 
   - doc_id: eba_gl_ict_security_en
+    skip_pages: "2, 30-129"     # 1-based, inclusive (valid for the sha256 in manifest.csv)
+    skip_reason: "table of contents; accompanying documents (cost-benefit analysis + consultation feedback)"
     work_id: eba_gl_2019_04
     title: "EBA Guidelines on ICT and security risk management (EBA/GL/2019/04)"
     publisher: EBA
@@ -72,6 +76,8 @@ sources:
     notes: "Being amended by the EBA in the context of DORA application."
 
   - doc_id: eba_gl_outsourcing_en
+    skip_pages: "2-3, 56-125"     # 1-based, inclusive (valid for the sha256 in manifest.csv)
+    skip_reason: "table of contents; accompanying documents (cost-benefit analysis + consultation feedback)"
     work_id: eba_gl_2019_02
     title: "EBA Guidelines on outsourcing arrangements (EBA/GL/2019/02)"
     publisher: EBA
@@ -81,6 +87,8 @@ sources:
     url: "https://www.eba.europa.eu/sites/default/files/documents/10180/2551996/38c80601-f5d7-4855-8ba3-702423665479/EBA%20revised%20Guidelines%20on%20outsourcing%20arrangements.pdf"
 
   - doc_id: eba_gl_loan_origination_en
+    skip_pages: "2-3, 77-89"     # 1-based, inclusive (valid for the sha256 in manifest.csv)
+    skip_reason: "table of contents; accompanying documents (cost-benefit analysis + consultation feedback)"
     work_id: eba_gl_2020_06
     title: "EBA Final Report - Guidelines on loan origination and monitoring (EBA/GL/2020/06)"
     publisher: EBA
@@ -90,6 +98,8 @@ sources:
     url: "https://www.eba.europa.eu/sites/default/files/document_library/Publications/Guidelines/2020/Guidelines%20on%20loan%20origination%20and%20monitoring/884283/EBA%20GL%202020%2006%20Final%20Report%20on%20GL%20on%20loan%20origination%20and%20monitoring.pdf"
 
   - doc_id: eba_ml_irb_report_en
+    skip_pages: "2"     # 1-based, inclusive (valid for the sha256 in manifest.csv)
+    skip_reason: "table of contents"
     work_id: eba_ml_irb_2023
     title: "EBA Follow-up report on the use of machine learning for internal ratings-based models"
     publisher: EBA
@@ -99,6 +109,8 @@ sources:
     url: "https://eba.europa.eu/sites/default/files/document_library/Publications/Reports/2023/1061483/Follow-up%20report%20on%20machine%20learning%20for%20IRB%20models.pdf"
 
   - doc_id: acpr_ia_gouvernance_fr
+    skip_pages: "2"     # 1-based, inclusive (valid for the sha256 in manifest.csv)
+    skip_reason: "table of contents"
     work_id: acpr_ia_2020
     title: "ACPR - Gouvernance des algorithmes d'intelligence artificielle dans le secteur financier (document de réflexion)"
     publisher: ACPR
