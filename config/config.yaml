@@ -33,3 +33,8 @@ vector_store:
 mlflow:
   tracking_uri: http://localhost:5001
   experiment: reg-rag
+
+parsing:
+  edge_band_pt: 72            # header/footer zone = 72 pt (1 inch) from top/bottom edge, any orientation
+  boilerplate_min_ratio: 0.3  # a line repeated in that zone on >= 30% of pages is boilerplate
+  footnote_size_gap: 0.5      # footnote line = font at least 0.5 pt smaller than the page's body font
