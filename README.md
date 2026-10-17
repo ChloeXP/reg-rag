@@ -52,8 +52,14 @@ uv run python -m rag.embed
 uv run python -m rag.index            # add --recreate after a schema change
 uv run python scripts/try_search.py   # 5 smoke queries x {dense, bm25, hybrid} x 2 strategies
 
-# 8. Tests: unit (no data) + data-quality (corpus) + integration (Qdrant running)
-uv run pytest -q
+# 8. Ask a question (baseline RAG: retrieve -> prompt v1 -> Ollama -> cited answer)
+uv run python -m rag.ask "Quelles sont les obligations de notification des incidents majeurs liés aux TIC ?"
+uv run python -m rag.ask --model qwen2.5:7b "What does CRR Article 92 require?"
+uv run python scripts/smoke_ask.py --models qwen2.5:3b qwen2.5:7b   # 5 smoke queries end to end
+
+# 9. Tests: unit (no data) + data-quality (corpus) + integration (Qdrant, Ollama running)
+uv run pytest -q                       # 69 passed, 5 xfailed (known limits, see below)
+uv run pytest -q -m "not ollama"       # skip the LLM calls (~45 s)
 ```
 
 - Qdrant dashboard: http://localhost:6333/dashboard
@@ -68,7 +74,9 @@ Experiments change the config, never the code.
 
 Asked *"Which AI Act article defines high-risk AI systems?"* (answer: Art. 6 + Annex III),
 bare local models invent plausible but wrong articles (Art. 9, 4, 3) and one claims the
-AI Act is "not yet adopted". See [`notes/no_rag_baseline.md`](notes/no_rag_baseline.md).
+AI Act is "not yet adopted". With temperature 0 both models are *stable* but still wrong
+(Art. 3). With retrieval, `qwen2.5:7b` answers "Article 6 [2]" and the citation points to
+the article's page. See [`notes/no_rag_baseline.md`](notes/no_rag_baseline.md).
 
 ## Data processing (step 2)
 
@@ -125,3 +133,48 @@ tokens (with `fixed` chunks it ranks Art. 395 first) but cannot cross languages;
 article split into several chunks splits its votes. Five hand-picked edge cases are not an
 evaluation: weighted RRF, article-level fusion and article-number filtering will be compared
 on the golden set in step 6. Default mode therefore stays `dense`.
+
+## Baseline RAG (step 4) — tag `baseline-v1`
+
+`python -m rag.ask` = `search()` → `build_prompt()` → Ollama → `parse_citations()`, no framework
+(`src/rag/generate.py`, `src/rag/ask.py`). Baseline configuration, the reference for every
+later experiment: `qwen2.5:3b`, temperature 0, bge-m3 dense, `structure` chunks, top-5,
+prompt `v1` (sha256 `7de0951c1af7`). `qwen2.5:7b` is the first one-variable experiment.
+
+- **Versioned prompt** [`prompts/v1.yaml`](prompts/v1.yaml): rules in the system role, passages +
+  question in the user turn, fixed refusal sentences (FR/EN) for exact refusal detection.
+  Each answer logs the prompt version *and* a content hash.
+- **Context**: passages numbered `[1]…[5]` with a short source label
+  (`[1] DORA — Article 19 Déclaration…`). Square brackets are reserved for citations: the
+  chunk's own `[DORA · Article 19]` header is moved into the label so the model cannot copy it.
+  Pages are not shown to the model; they go into the reference list built by code.
+- **Answer language** is decided by code (FR/EN function-word rule, default `en` when there
+  is no signal) and stated in the prompt, instead of asking a 3B model to infer it.
+- **Citation checks** (reported, never repaired, so the baseline measures the model as it is):
+  valid / invalid `[n]`, refusal, no citation, copied non-numeric brackets; references merged
+  per legal unit (an article split in 3 chunks = 1 reference).
+- **Run log** `runs/ask_log.jsonl` (gitignored): one line per answer with git commit
+  (`-dirty` if uncommitted), config, prompt hash, retrieved `chunk_id` + text hash, flags,
+  latency split (load / prefill / decode) and token counts — pointers, not copies.
+
+Smoke test, 5 queries, answers checked by hand against the cited passages:
+
+| Query | qwen2.5:3b | qwen2.5:7b |
+|---|---|---|
+| Q1 DORA Art. 19 (FR) | ✓ | ✓ |
+| Q2 EBA outsourcing register (EN) | ✓ | ✓ content, but cites `[52][54]` (the guideline's own paragraph numbers) |
+| Q3 CRR Art. 92 (FR → EN) | ✗ quotes the 2014 transitional ratios (Art. 465) instead of 4.5 / 6 / 8 % | ✓ in French |
+| Q4 "CRR Article 395" | ✗ 25 % limit not retrieved (wrong chunk of the article) | ✗ same |
+| Q5 AI Act high-risk | ✗ "[1] defines high-risk AI systems." | ✓ Article 6 |
+| **Correct** | **2 / 5** | **4 / 5** |
+
+No answer contains a fact absent from its cited passages. The automatic check "a cited
+passage is at the expected location" passes 10/10 while only 6/10 answers are right:
+citing the right article is necessary, not sufficient — the golden set (step 5) therefore
+records answer-level key facts.
+
+Latency on an M1 (Ollama, Metal): prefill ≈ 300 tok/s (3b) / 125 tok/s (7b), decode ≈ 25 / 12
+tok/s; a ~2 400-token prompt costs ~8 s (3b) / ~18 s (7b) before the first word, so each extra
+retrieved chunk adds ~1.5 s (3b). Two measurement traps found: Ollama's KV cache makes a
+repeated prompt's prefill ~0.05 s, and the CLI's retrieval time (~9.5 s) is mostly loading
+bge-m3 (0.2–1 s per query inside one process).
