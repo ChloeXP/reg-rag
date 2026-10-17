@@ -9,6 +9,7 @@ paths:
   sources: data/sources.yaml
   raw_dir: data/raw
   processed_dir: data/processed
+  embeddings_dir: data/processed/embeddings   # vector cache, one parquet per model (step 3.2)
   manifest: data/manifest.csv
   prompts_dir: prompts
 
