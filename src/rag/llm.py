@@ -10,8 +10,10 @@ import httpx
 from rag.config import load_config
 
 
-def generate(prompt: str, cfg: dict, system: str | None = None) -> dict:
-    """Send one prompt to Ollama, return text + basic telemetry."""
+def generate(
+    prompt: str, cfg: dict, system: str | None = None, fmt: str | dict | None = None
+) -> dict:
+    """Send one prompt to Ollama, return text + basic telemetry. fmt: "json" or a JSON schema."""
     llm = cfg["llm"]
     payload = {
         "model": llm["model"],
@@ -21,6 +23,8 @@ def generate(prompt: str, cfg: dict, system: str | None = None) -> dict:
     }
     if system:
         payload["system"] = system
+    if fmt:
+        payload["format"] = fmt  # step 5.3: golden-set drafts are JSON objects
 
     t0 = time.perf_counter()
     resp = httpx.post(f"{llm['base_url']}/api/generate", json=payload, timeout=llm["timeout_s"])

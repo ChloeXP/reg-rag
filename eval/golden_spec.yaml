@@ -55,3 +55,11 @@ sampling:
   # Entry-into-force / application dates are kept: a classic user question.
   exclude_headings: '(?i)(amendments? to (regulation|directive)|modifications? d[ue]s? (règlement|directive)|> repeal\]|^\[AI ACT · ANNEXE? (I|X)\b)'
   output: eval/candidates/seeds.jsonl
+
+# 5.3 - 7b drafts one candidate per seed (decision 5.3-C: question in FR AND EN; the language
+# is assigned in 5.4, after rejections, so the language quota survives). 3b drafts too weakly.
+drafting:
+  model: qwen2.5:7b
+  temperature: 0.0       # reproducible drafts (same seed chunk -> same draft)
+  prompt: prompts/golden_draft_v2.yaml   # v1 kept: its 2 drafts stay in the file as history
+  output: eval/candidates/llm_candidates.jsonl   # appended per seed -> resumable
