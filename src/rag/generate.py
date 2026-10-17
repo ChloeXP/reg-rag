@@ -17,6 +17,9 @@ MAX_LABEL = 120  # some headers carry a whole title page (ACPR: 317 chars)
 
 # Language detection (decision 4.3b-B): the corpus and the questions are FR or EN only.
 LANGUAGES = {"fr": "French", "en": "English"}
+# Citations: [1] [1][3] [1, 3] [1; 3] [1-3]. Any other [...] is counted, never parsed (P35).
+CITATION = re.compile(r"\[(\d+(?:\s*[,;\-–]\s*\d+)*)\]")
+BRACKETS = re.compile(r"\[[^\[\]\n]*\]")
 WORD = re.compile(r"[^\W\d_]+")  # letters only; apostrophes split "l'article" -> l, article
 FR_ACCENTS = set("éèêëàâçùûüôîïœ")
 FR_WORDS = frozenset(
@@ -44,7 +47,7 @@ def load_prompt(cfg: dict, version: str | None = None) -> dict:
     path = PROJECT_ROOT / cfg["paths"]["prompts_dir"] / f"{version}.yaml"
     prompt = yaml.safe_load(path.read_text(encoding="utf-8"))
 
-    missing = {"version", "system", "user"} - prompt.keys()
+    missing = {"version", "system", "user", "refusal"} - prompt.keys()
     if missing:
         raise ValueError(f"{path.name}: missing keys {sorted(missing)}")
     if prompt["version"] != version:
@@ -55,6 +58,10 @@ def load_prompt(cfg: dict, version: str | None = None) -> dict:
         raise ValueError(
             f"{path.name}: user placeholders {_fields(prompt['user'])} != {PLACEHOLDERS}"
         )
+
+    for lang, sentence in prompt["refusal"].items():
+        if f'"{sentence}"' not in prompt["system"]:
+            raise ValueError(f"{path.name}: refusal[{lang}] not quoted verbatim in system")
 
     digest = hashlib.sha256((prompt["system"] + "\x00" + prompt["user"]).encode()).hexdigest()
     return {**prompt, "sha256": digest[:12]}
@@ -126,3 +133,61 @@ def build_prompt(question: str, hits: list[dict], prompt: dict, cfg: dict, lang:
         context=format_context(hits), question=question.strip(), answer_language=LANGUAGES[lang]
     )
     return {"system": prompt["system"], "user": user, "language": lang}
+
+
+def _numbers(group: str) -> list[int]:
+    """'1, 3' -> [1, 3]; '2-4' -> [2, 3, 4] (an absurd range like '1-900' keeps its two ends)."""
+    out = []
+    for part in re.split(r"\s*[,;]\s*", group):
+        m = re.fullmatch(r"(\d+)\s*[\-–]\s*(\d+)", part)
+        if not m:
+            out.append(int(part))
+            continue
+        a, b = int(m[1]), int(m[2])
+        out.extend(range(a, b + 1) if 0 <= b - a < 20 else [a, b])
+    return out
+
+
+def _norm(text: str) -> str:
+    return " ".join(text.lower().replace("’", "'").strip(' "«»').split())
+
+
+def parse_citations(answer: str, hits: list[dict], prompt: dict) -> dict:
+    """Check the model's [n] against the passages it was given (decision 4.4-A: report, never fix).
+
+    -> cited (valid n), invalid (n outside 1..len(hits)), is_refusal, uncited (no valid [n] and
+    not a refusal), other_brackets (e.g. a copied "[DORA — Article 19]"), references.
+    """
+    numbers = [n for g in CITATION.findall(answer) for n in _numbers(g)]
+    cited = sorted({n for n in numbers if 1 <= n <= len(hits)})
+    invalid = sorted({n for n in numbers if not 1 <= n <= len(hits)})
+    is_refusal = any(_norm(r) in _norm(answer) for r in prompt["refusal"].values())
+    return {
+        "cited": cited,
+        "invalid": invalid,
+        "is_refusal": is_refusal,
+        "uncited": not cited and not is_refusal,
+        "other_brackets": len(BRACKETS.findall(answer)) - len(CITATION.findall(answer)),
+        "references": references([(n, hits[n - 1]) for n in cited]),
+    }
+
+
+def references(numbered: list[tuple[int, dict]]) -> list[dict]:
+    """Merge cited passages of the same legal unit: Art. 19 cut in 3 chunks -> one reference."""
+    refs: dict[tuple, dict] = {}
+    for n, hit in numbered:
+        label, _ = split_passage(hit)
+        ref = refs.setdefault(
+            (hit["doc_id"], label),
+            {"n": [], "doc_id": hit["doc_id"], "work_id": hit["work_id"], "label": label,
+             "article": hit.get("article"), "pages": set(), "chunk_ids": []},
+        )  # fmt: skip
+        ref["n"].append(n)
+        ref["chunk_ids"].append(hit["chunk_id"])
+        ref["pages"].update(
+            p for p in (hit.get("page_start"), hit.get("page_end")) if p is not None
+        )
+    for ref in refs.values():
+        pages = sorted(ref.pop("pages"))
+        ref["pages"] = "" if not pages else _pages({"page_start": pages[0], "page_end": pages[-1]})
+    return list(refs.values())

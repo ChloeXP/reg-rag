@@ -10,6 +10,12 @@ description: >
   Fixed refusal sentence so refusals can be detected exactly (step 6).
   The model cites [n] only; the reference list is built by code from chunk metadata.
 
+# Refusal sentences: must appear verbatim in `system` (checked by load_prompt);
+# rag.generate.parse_citations uses them to detect refusals exactly (step 6 metric).
+refusal:
+  fr: "Je ne trouve pas la réponse dans les documents fournis."
+  en: "I cannot find the answer in the provided documents."
+
 system: |
   You are an assistant for banking and financial regulation (EU AI Act, CRR, DORA,
   EBA guidelines, ACPR publications). You answer questions using ONLY the numbered
