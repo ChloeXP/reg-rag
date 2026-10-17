@@ -27,6 +27,12 @@ chunking:
   chunk_overlap: 64    # tokens shared by two consecutive fixed chunks
   include_footnotes: false  # decision 2.2b-C: footnotes kept as blocks, off by default
 
+embedding:
+  model: BAAI/bge-m3   # multilingual FR/EN, 1024-d dense; same model as chunking.tokenizer
+  device: mps          # step 3.1 bench: mps 4.1 chunks/s vs cpu 2.5 (scripts/bench_embed.py)
+  batch_size: 16       # 8/16/32 within noise (4.1/4.0/3.8 chunks/s) -> middle value
+  normalize: true      # unit vectors: cosine == dot product
+
 retrieval:
   top_k: 5             # (step 3-4)
 
