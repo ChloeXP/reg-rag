@@ -31,27 +31,25 @@
 #   defence or national security purposes should not fall within the scope of this Regulation,
 #   regardless of the type of entity carrying out those activities.
 - seed_id: S01
-  decision: todo
+  decision: accept
   drop_reason: null
   question_language: auto
-  question_en: "Can entities involved in national security, defence, and military activities use AI systems for these purposes even if they are placed on the market for civilian or law enforcement use?"
-  question_fr: "Peut-on que des entités impliquées dans les activités de sécurité nationale, de défense et de military utilisent des systèmes d'IA pour ces activités même si ceux-ci sont mis sur le marché pour des usages civils ou de police ?"
+  question_en: "How does the AI Act treat a civilian AI product that is later reused for military or national security purposes?"
+  question_fr: "Comment l'AI Act traite-t-il un produit d'IA civil réutilisé ensuite à des fins militaires ou de sécurité nationale ?"
   ground_truth: |-
-    Entities carrying out national security, defence and military activities can use AI
-    systems for these purposes even if the systems are placed on the market for civilian or
-    law enforcement purposes.
+    An AI system placed on the market for civilian or law enforcement purposes that is used,
+    with or without modification, for military, defence or national security purposes does
+    not fall within the scope of the AI Act, whatever the type of entity carrying out those
+    activities. The use of AI systems for national security, military and defence purposes
+    is excluded from the scope of the Regulation.
   key_facts:
-    - fact: "national security"
-      pattern: 'national\s+security'
-    - fact: "defence"
-      pattern: 'defence'
-    - fact: "military activities"
-      pattern: 'military\s+activities'
-    - fact: "civilian or law enforcement purposes"
-      pattern: 'civilian\s+or\s+law\s+enforcement\s+purposes'
+    - fact: "outside the scope of the Regulation"
+      pattern: '(not\s+fall\s+within\s+the\s+scope|excluded\s+from\s+the\s+scope|ne\s+(devrait|doit)\s+pas\s+relever|exclu\w*\s+du\s+champ|hors\s+du\s+champ)'
+    - fact: "regardless of the type of entity"
+      pattern: '(regardless\s+of\s+the\s+type\s+of\s+entity|(indépendamment\s+du|quel(le)?\s+que\s+soit\s+le)\s+type\s+d.entit)'
   source_chunk_ids: [ai_act_en::structure::0029]
   expected: {"work_id": "ai_act", "markers": ["Recital 24]", "Considérant 24]"]}
-  notes: null
+  notes: "P44: the 7b draft said 'can use' (scope exclusion turned into a permission). rewrite proposed by Claude (5.4-B) - verify against SOURCE"
 
 # ========================================================================================
 # S02 · ai_act · fr · recital · copy 0.8 · flags: -
@@ -69,8 +67,8 @@
 #   membres devraient être en mesure de solliciter l’aide de la réserve d’experts constituant
 #   le groupe scientifique pour leurs activités répressives.
 - seed_id: S02
-  decision: todo
-  drop_reason: null
+  decision: drop
+  drop_reason: "quota: AI Act recital slot taken by S01 (stronger: scope exclusion = negation test)"
   question_language: auto
   question_en: "What should independent experts in the scientific or technical field of AI be chosen for in the context of the AI Act?"
   question_fr: "Quels experts indépendants dans le domaine scientifique ou technique de l'IA devraient-ils être choisis dans le contexte du règlement AI ?"
@@ -123,25 +121,23 @@
 #   representative. The notification shall contain the conclusions of the assessment of the
 #   technical documentation and the reasoned assessment decision.
 - seed_id: S03
-  decision: todo
+  decision: accept
   drop_reason: null
   question_language: auto
-  question_en: "What must a provider include in their application to a notified body under the AI Act?"
-  question_fr: "Quelles informations doit le fournisseur inclure dans sa demande à un organisme notifié selon l'AI Act ?"
+  question_en: "When a provider asks a notified body to check the technical documentation of its high-risk AI system, what must the application contain under the AI Act?"
+  question_fr: "Que doit contenir la demande qu'un fournisseur adresse à un organisme notifié pour l'évaluation de la documentation technique de son système d'IA à haut risque, selon l'AI Act ?"
   ground_truth: |-
-    The application shall include: the name and address of the provider; a written
-    declaration that the same application has not been lodged with any other notified body;
-    the technical documentation referred to in Annex IV.
+    The application must include the name and address of the provider, a written declaration
+    that the same application has not been lodged with any other notified body, and the
+    technical documentation referred to in Annex IV.
   key_facts:
-    - fact: "name and address of the provider"
-      pattern: 'name\s+and\s+address\s+of\s+the\s+provider'
-    - fact: "written declaration"
-      pattern: 'written\s+declaration'
-    - fact: "technical documentation referred to in Annex IV"
-      pattern: 'technical\s+documentation\s+referred\s+to\s+in\s+Annex\s+IV'
+    - fact: "not lodged with any other notified body"
+      pattern: '(any\s+other\s+notified\s+body|autre\s+organisme\s+notifi)'
+    - fact: "technical documentation of Annex IV"
+      pattern: '(annex\w*\s+IV)'
   source_chunk_ids: [ai_act_en::structure::0404]
   expected: {"work_id": "ai_act", "sections": ["ANNEX VII ", "ANNEXE VII "]}
-  notes: null
+  notes: "rewrite proposed by Claude (5.4-B) - verify against SOURCE"
 
 # ========================================================================================
 # S04 · ai_act · en · annex · copy 1.0 · flags: facts 3/4 in source, mentions passage/document/article
@@ -175,29 +171,26 @@
 #   Article 35 of Regulation (EU) 2016/679 or Article 27 of Directive (EU) 2016/680 as
 #   specified in Article 26(8) of this Regulation, where applicable.
 - seed_id: S04
-  decision: todo
+  decision: accept
   drop_reason: null
   question_language: auto
-  question_en: "What information must be provided by the deployer of a high-risk AI system under Article 49(3)?"
-  question_fr: "Quelles informations doivent être fournies par le déployeur d'un système d'IA à haut risque en vertu de l’article 49(3) ?"
+  question_en: "When a deployer registers a high-risk AI system in the EU database, what information does the AI Act require from it?"
+  question_fr: "Quand un déployeur enregistre un système d'IA à haut risque dans la base de données de l'UE, quelles informations l'AI Act lui impose-t-il de fournir ?"
   ground_truth: |-
-    The deployer must provide the name, address and contact details of the deployer, the
-    name, address and contact details of the person submitting information on behalf of the
-    deployer, the URL of the entry of the AI system in the EU database by its provider, a
-    summary of the findings of the fundamental rights impact assessment, and a summary of
-    the data protection impact assessment, where applicable.
+    Deployers registering a high-risk AI system under Article 49(3) must provide, and keep
+    up to date, their name, address and contact details; those of the person submitting the
+    information on their behalf; the URL of the provider's entry for the AI system in the EU
+    database; a summary of the findings of the fundamental rights impact assessment carried
+    out under Article 27; and, where applicable, a summary of the data protection impact
+    assessment.
   key_facts:
-    - fact: "name, address and contact details of the deployer"
-      pattern: 'name,\s+address\s+and\s+contact\s+details\s+of\s+the\s+deployer'
-    - fact: "name, address and contact details of the person submitting information on behalf of the deployer"
-      pattern: 'name,\s+address\s+and\s+contact\s+details\s+of\s+the\s+person\s+submitting\s+information\s+on\s+behalf\s+of\s+the\s+deployer'
-    - fact: "URL of the entry of the AI system in the EU database by its provider"
-      pattern: 'URL\s+of\s+the\s+entry\s+of\s+the\s+AI\s+system\s+in\s+the\s+EU\s+database\s+by\s+its\s+provider'
-    - fact: "summary of the findings of the fundamental rights impact assessment conducted in accordance with Article 27 of the AI Act"
-      pattern: 'summary\s+of\s+the\s+findings\s+of\s+the\s+fundamental\s+rights\s+impact\s+assessment\s+conducted\s+in\s+accordance\s+with\s+Article\s+27\s+of\s+the\s+AI\s+Act'
+    - fact: "summary of the fundamental rights impact assessment"
+      pattern: '(fundamental\s+rights\s+impact\s+assessment|analyse\s+d.impact\s+sur\s+les\s+droits\s+fondamentaux)'
+    - fact: "URL of the provider's entry in the EU database"
+      pattern: '\bURL\b'
   source_chunk_ids: [ai_act_en::structure::0408]
   expected: {"work_id": "ai_act", "sections": ["ANNEX VIII ", "ANNEXE VIII "]}
-  notes: null
+  notes: "rewrite proposed by Claude (5.4-B) - verify against SOURCE"
 
 # ========================================================================================
 # S05 · ai_act · fr · annex · copy 0.5 · flags: evidence not verbatim, facts 3/4 in source
@@ -232,8 +225,8 @@
 #   6. une description des modifications pertinentes apportées par le fournisseur au système
 #   tout au long de son cycle de vie;
 - seed_id: S05
-  decision: todo
-  drop_reason: null
+  decision: drop
+  drop_reason: "Annex IV list fragment (points f-h, 3-6): no single answer; annex slots taken by S03/S04"
   question_language: auto
   question_en: "What must be included in the technical documentation for an AI system according to the AI Act?"
   question_fr: "Quels éléments doivent figurer dans la documentation technique d'un système d'IA selon l'AI Act ?"
@@ -291,29 +284,27 @@
 #   (9) ‘placing on the market’ means the first making available of an AI system or a general-
 #   purpose AI model on the Union market;
 - seed_id: S06
-  decision: todo
+  decision: accept
   drop_reason: null
   question_language: auto
-  question_en: "What does the term 'AI system' mean according to the AI Act?"
-  question_fr: "Quel est le sens du terme 'système d’intelligence artificielle' selon le règlement sur l'IA?"
+  question_en: "How does the AI Act define an 'AI system'?"
+  question_fr: "Comment l'AI Act définit-il un « système d'IA » ?"
   ground_truth: |-
-    An AI system means a machine-based system that is designed to operate with varying
-    levels of autonomy and that may exhibit adaptiveness after deployment, and that, for
-    explicit or implicit objectives, infers, from the input it receives, how to generate
-    outputs such as predictions, content, recommendations, or decisions that can influence
-    physical or virtual environments.
+    An AI system is a machine-based system designed to operate with varying levels of
+    autonomy, that may exhibit adaptiveness after deployment, and that, for explicit or
+    implicit objectives, infers from the input it receives how to generate outputs such as
+    predictions, content, recommendations or decisions that can influence physical or
+    virtual environments.
   key_facts:
     - fact: "machine-based system"
-      pattern: 'machine\-based\s+system'
-    - fact: "operates with varying levels of autonomy"
-      pattern: 'operates\s+with\s+varying\s+levels\s+of\s+autonomy'
-    - fact: "may exhibit adaptiveness after deployment"
-      pattern: 'may\s+exhibit\s+adaptiveness\s+after\s+deployment'
-    - fact: "infers, from the input it receives, how to generate outputs such as predictions, content, recommendations, or decisions that can influence physical or virtual environments"
-      pattern: 'infers,\s+from\s+the\s+input\s+it\s+receives,\s+how\s+to\s+generate\s+outputs\s+such\s+as\s+predictions,\s+content,\s+recommendations,\s+or\s+decisions\s+that\s+can\s+influence\s+physical\s+or\s+virtual\s+environments'
+      pattern: '(machine-based\s+system|système\s+automatisé)'
+    - fact: "varying levels of autonomy"
+      pattern: '(levels\s+of\s+autonomy|niveaux\s+d.autonomie)'
+    - fact: "infers how to generate outputs"
+      pattern: '(infers|dédui[ts])'
   source_chunk_ids: [ai_act_en::structure::0208]
   expected: {"work_id": "ai_act", "articles": ["3"], "markers": ["Article 3 Definitions", "Article 3 Définitions"]}
-  notes: null
+  notes: "Article 3(1); not the smoke question (Q5 is Article 6). rewrite proposed by Claude (5.4-B) - verify against SOURCE"
 
 # ========================================================================================
 # S07 · ai_act · en · article · copy 0.86 · flags: -
@@ -350,8 +341,8 @@
 #   needs of SMEs, including start-ups, when encouraging and facilitating the drawing up of
 #   codes of conduct.
 - seed_id: S07
-  decision: todo
-  drop_reason: null
+  decision: drop
+  drop_reason: "vague question on a soft provision (what codes of conduct 'may' cover)"
   question_language: auto
   question_en: "What specific requirements can codes of conduct cover for AI systems under the AI Act?"
   question_fr: "Quelles exigences spécifiques peuvent couvrir les codes de conduite pour les systèmes d'IA selon le règlement sur l'IA?"
@@ -396,26 +387,27 @@
 #   utilisation est autorisée par la loi à des fins de prévention ou de détection des
 #   infractions pénales, d’enquêtes ou de poursuites en la matière.
 - seed_id: S08
-  decision: todo
+  decision: accept
   drop_reason: null
   question_language: auto
-  question_en: "What must providers of AI systems that generate synthesized content do to mark their outputs?"
-  question_fr: "Quels doivent être les fournisseurs de systèmes d’IA qui génèrent des contenus de synthèse de type audio, image, vidéo ou texte pour marquer leurs sorties?"
+  question_en: "Under the AI Act, what must the provider of a generative AI tool do so that the images, audio or text it produces can be recognised as AI-generated?"
+  question_fr: "Selon l'AI Act, que doit faire le fournisseur d'un outil d'IA générative pour que les images, sons ou textes qu'il produit puissent être reconnus comme générés par une IA ?"
   ground_truth: |-
-    Les fournisseurs de systèmes d’IA, y compris de systèmes d’IA à usage général, qui
-    génèrent des contenus de synthèse de type audio, image, vidéo ou texte, veillent à ce
-    que les sorties des systèmes d’IA soient marquées dans un format lisible par machine et
-    identifiables comme ayant été générées ou manipulées par une IA.
+    Les fournisseurs de systèmes d'IA, y compris de systèmes d'IA à usage général, qui
+    génèrent des contenus de synthèse de type audio, image, vidéo ou texte veillent à ce que
+    les sorties soient marquées dans un format lisible par machine et identifiables comme
+    ayant été générées ou manipulées par une IA. Cette obligation ne s'applique pas lorsque
+    le système remplit une fonction d'assistance pour la mise en forme standard ou ne
+    modifie pas de manière substantielle les données d'entrée, ni lorsque l'utilisation est
+    autorisée par la loi à des fins de prévention ou de détection des infractions pénales.
   key_facts:
-    - fact: "génèrent des contenus de synthèse"
-      pattern: 'génèrent\s+des\s+contenus\s+de\s+synthèse'
-    - fact: "marquées dans un format lisible par machine"
-      pattern: 'marquées\s+dans\s+un\s+format\s+lisible\s+par\s+machine'
-    - fact: "identifiables comme ayant été générées ou manipulées par une IA"
-      pattern: 'identifiables\s+comme\s+ayant\s+été\s+générées\s+ou\s+manipulées\s+par\s+une\s+IA'
+    - fact: "format lisible par machine"
+      pattern: '(lisible\s+par\s+machine|machine[-\s]readable)'
+    - fact: "générées ou manipulées par une IA"
+      pattern: '(générées\s+ou\s+manipulées|generated\s+or\s+manipulated)'
   source_chunk_ids: [ai_act_fr::structure::0319]
   expected: {"work_id": "ai_act", "articles": ["50"], "markers": ["Article 50 Obligations de transparence pour les fournisseurs et les déployeurs de certains systèmes d’IA", "Article 50 Transparency obligations for providers and deployers of certain AI systems"]}
-  notes: null
+  notes: "Article 50(2); the ground truth keeps the two exceptions. rewrite proposed by Claude (5.4-B) - verify against SOURCE"
 
 # ========================================================================================
 # S09 · crr · en · article · copy 1.0 · flags: evidence not verbatim, facts 3/4 in source
@@ -450,8 +442,8 @@
 #   in the scope of consolidation pursuant to Chapter 2 of Title II of Part One.
 #   The method chosen shall be applied in a consistent manner over time.
 - seed_id: S09
-  decision: todo
-  drop_reason: null
+  decision: drop
+  drop_reason: "Article 49 conditions (a)-(e) too long for one factual question"
   question_language: auto
   question_en: "Under CRR, which conditions must be met for an institution not to deduct the holdings of own funds instruments of a financial sector entity in which it has a significant investment?"
   question_fr: "Selon le CRR, quelles conditions doivent être remplies pour que l'institution ne doive pas déduire les titres propres détenus dans une entité du secteur financier dans laquelle elle a un investissement significatif?"
@@ -490,29 +482,28 @@
 #   this Chapter and that such units do not exceed 10 % of the nominal amount of the
 #   outstanding issue.
 - seed_id: S10
-  decision: todo
+  decision: accept
   drop_reason: null
   question_language: auto
-  question_en: "What percentage of the value of the pledged properties must be composed of residential mortgages combined with any prior liens when senior units are used as collateral?"
-  question_fr: "Quelle proportion de la valeur des biens hypothéqués doit être composée de prêts hypothécaires résidentiels combinés avec n'importe quel gage préalable lorsque des unités senior sont utilisées comme garantie?"
+  question_en: "Under the CRR, what share of the assets behind French FCT senior units used as covered-bond collateral must be residential mortgages?"
+  question_fr: "Selon le CRR, quelle part des actifs sous-jacents aux parts senior de FCT utilisées comme garantie d'obligations garanties doit être constituée de prêts hypothécaires résidentiels ?"
   ground_truth: |-
-    At any time while they are included in the cover pool, the assets underlying such units
-    shall, at any time while they are included in the cover pool be at least 90 % composed
-    of residential mortgages that are combined with any prior liens up to the lesser of the
-    principal amounts due under the units, the principal amounts of the liens, and 80 % of
-    the value of the pledged properties.
+    The assets underlying such senior units must, at any time while they are in the cover
+    pool, be at least 90 % composed of residential mortgages combined with any prior liens
+    up to the lesser of the principal amounts due under the units, the principal amounts of
+    the liens, and 80 % of the value of the pledged properties. The units must also qualify
+    for credit quality step 1 and must not exceed 10 % of the nominal amount of the
+    outstanding issue.
   key_facts:
-    - fact: "90 %"
+    - fact: "at least 90 %"
       pattern: '90\W{0,3}%'
+    - fact: "not more than 10 % of the outstanding issue"
+      pattern: '10\W{0,3}%'
     - fact: "residential mortgages"
-      pattern: 'residential\s+mortgages'
-    - fact: "80 %"
-      pattern: '80\W{0,3}%'
-    - fact: "value of the pledged properties"
-      pattern: 'value\s+of\s+the\s+pledged\s+properties'
+      pattern: '(residential\s+mortgage|hypothécaires?\s+résidentiel)'
   source_chunk_ids: [crr_en::structure::0331]
   expected: {"work_id": "crr", "articles": ["129"], "markers": ["Article 129 Exposures in the form of covered bonds"]}
-  notes: null
+  notes: "Wording of the CRR version in the corpus (FCT units; later amended by the covered bond package - not in the corpus). rewrite proposed by Claude (5.4-B) - verify against SOURCE"
 
 # ========================================================================================
 # S11 · crr · en · article · copy 1.0 · flags: evidence not verbatim
@@ -547,28 +538,25 @@
 #   (c) they shall have in place documented policies and practices concerning the types and
 #   amounts of collateral accepted;
 - seed_id: S11
-  decision: todo
+  decision: accept
   drop_reason: null
   question_language: auto
-  question_en: "What must institutions do to ensure the enforceability of collateral arrangements under applicable law?"
-  question_fr: "Quelles mesures doivent les institutions prendre pour assurer l'efficacité juridique des arrangements de garantie selon la législation applicable?"
+  question_en: "What does the CRR require a bank to do to be sure its financial collateral can actually be enforced?"
+  question_fr: "Que doit faire une banque, selon le CRR, pour s'assurer que ses sûretés financières pourront réellement être réalisées ?"
   ground_truth: |-
-    Institutions shall fulfil any contractual and statutory requirements in respect of, and
-    take all steps necessary to ensure, the enforceability of the collateral arrangements
-    under the law applicable to their interest in the collateral. They shall re-conduct such
-    review as necessary to ensure continuing enforceability.
+    Institutions must fulfil any contractual and statutory requirements and take all steps
+    necessary to ensure the enforceability of the collateral arrangements under the law
+    applicable to their interest in the collateral. They must have conducted sufficient
+    legal review confirming enforceability in all relevant jurisdictions, and re-conduct
+    that review as necessary to ensure continuing enforceability.
   key_facts:
-    - fact: "fulfil any contractual and statutory requirements"
-      pattern: 'fulfil\s+any\s+contractual\s+and\s+statutory\s+requirements'
-    - fact: "take all steps necessary to ensure"
-      pattern: 'take\s+all\s+steps\s+necessary\s+to\s+ensure'
-    - fact: "enforceability of the collateral arrangements"
-      pattern: 'enforceability\s+of\s+the\s+collateral\s+arrangements'
-    - fact: "re-conduct such review as necessary"
-      pattern: 're\-conduct\s+such\s+review\s+as\s+necessary'
+    - fact: "sufficient legal review"
+      pattern: '(legal\s+review|examen\s+juridique|analyse\s+juridique)'
+    - fact: "in all relevant jurisdictions"
+      pattern: '(all\s+relevant\s+jurisdictions|toutes\s+les\s+juridictions)'
   source_chunk_ids: [crr_en::structure::0461]
   expected: {"work_id": "crr", "articles": ["207"], "markers": ["Article 207 Requirements for financial collateral"]}
-  notes: null
+  notes: "rewrite proposed by Claude (5.4-B) - verify against SOURCE"
 
 # ========================================================================================
 # S12 · crr · en · article · copy 0.89 · flags: -
@@ -603,28 +591,25 @@
 #   payments at all, to the estate of the defaulting party, even if the defaulting party is a
 #   net creditor (i.e. walk away clause).
 - seed_id: S12
-  decision: todo
+  decision: accept
   drop_reason: null
   question_language: auto
-  question_en: "What condition must a contractual netting agreement not include to ensure full payment in the event of default?"
-  question_fr: "Quelle condition doit l'accord de nettoyage contractuel ne pas inclure pour garantir le paiement intégral en cas de défaut?"
+  question_en: "Under the CRR, which kind of clause prevents a netting agreement from being recognised?"
+  question_fr: "Selon le CRR, quel type de clause empêche la reconnaissance d'un accord de compensation contractuelle ?"
   ground_truth: |-
-    The contract shall not contain any clause which, in the event of default of a
-    counterparty, permits a non-defaulting counterparty to make limited payments only, or no
-    payments at all, to the estate of the defaulting party, even if the defaulting party is
-    a net creditor (i.e. walk away clause).
+    A contractual netting agreement is recognised only if, among other conditions, the
+    contract contains no clause which, in the event of a counterparty's default, permits the
+    non-defaulting counterparty to make only limited payments, or no payments at all, to the
+    estate of the defaulting party, even if the defaulting party is a net creditor (a 'walk
+    away clause').
   key_facts:
     - fact: "walk away clause"
-      pattern: 'walk\s+away\s+clause'
-    - fact: "non-defaulting counterparty"
-      pattern: 'non\-defaulting\s+counterparty'
-    - fact: "make limited payments"
-      pattern: 'make\s+limited\s+payments'
-    - fact: "no payments at all"
-      pattern: 'no\s+payments\s+at\s+all'
+      pattern: '(walk[-\s]away|clause\s+de\s+(retrait|sortie))'
+    - fact: "limited payments or no payments at all"
+      pattern: '(limited\s+payments|no\s+payments|paiements?\s+limités|aucun\s+paiement)'
   source_chunk_ids: [crr_en::structure::0609]
   expected: {"work_id": "crr", "articles": ["296"], "markers": ["Article 296 Recognition of contractual netting agreements"]}
-  notes: null
+  notes: "rewrite proposed by Claude (5.4-B) - verify against SOURCE"
 
 # ========================================================================================
 # S13 · crr · en · article · copy 1.0 · flags: -
@@ -656,22 +641,25 @@
 #   From 100 % to 250 % | 600 %
 #   Over 250 % | 900 %
 - seed_id: S13
-  decision: todo
+  decision: accept
   drop_reason: null
   question_language: auto
-  question_en: "What is the additional capital requirement if the excess has not persisted for more than 10 days?"
-  question_fr: "Quelle est la provision complémentaire de fonds propres si l'exces n'a pas persisté pendant plus de 10 jours ?"
+  question_en: "Under the CRR large exposure rules, what extra own funds charge applies when a trading book exposure has exceeded the limit for no more than 10 days?"
+  question_fr: "Dans les règles du CRR sur les grands risques, quelle exigence supplémentaire de fonds propres s'applique lorsqu'un dépassement de limite dans le portefeuille de négociation n'a pas duré plus de 10 jours ?"
   ground_truth: |-
-    The additional capital requirement shall be 200 % of the requirements referred to in
-    paragraph 1, on these components.
+    Where the excess has not persisted for more than 10 days, the additional own funds
+    requirement is 200 % of the requirements on the components selected under paragraph 1
+    (the components of the trading exposure that attract the highest specific-risk
+    requirements). From 10 days after the excess, the components are allocated to Table 1
+    and multiplied by factors from 200 % up to 900 % depending on the size of the excess.
   key_facts:
     - fact: "200 %"
       pattern: '200\W{0,3}%'
-    - fact: "requirements referred to in paragraph 1"
-      pattern: 'requirements\s+referred\s+to\s+in\s+paragraph\s+1'
+    - fact: "10 days"
+      pattern: '10\s+(days|jours)'
   source_chunk_ids: [crr_en::structure::0759]
   expected: {"work_id": "crr", "articles": ["397"], "markers": ["Article 397 Calculating additional own funds requirements for large exposures in the trading book"]}
-  notes: null
+  notes: "Article 397; not the smoke question (Q4 is Article 395). rewrite proposed by Claude (5.4-B) - verify against SOURCE"
 
 # ========================================================================================
 # S14 · crr · en · article · copy 0.8 · flags: -
@@ -687,8 +675,8 @@
 #   (c) the conditions laid down in Article 63 are not met from the date of the effective
 #   maturity of the items.
 - seed_id: S14
-  decision: todo
-  drop_reason: null
+  decision: drop
+  drop_reason: "transitional grandfathering rule (31 December 2011) made of cross-references; low user relevance"
   question_language: auto
   question_en: "Under CRR, when can Tier 2 items with an incentive to redeem qualify as Tier 2 items?"
   question_fr: "Selon le CRR, sous quels conditions les titres de niveau 2 avec un incitatif de rachat peuvent-ils être considérés comme des titres de niveau 2 ?"
@@ -726,32 +714,29 @@
 #   sont considérés comme des microentreprises ou des petites ou moyennes entreprises ne
 #   devraient pas relever du présent règlement.
 - seed_id: S15
-  decision: todo
+  decision: accept
   drop_reason: null
   question_language: auto
-  question_en: "Which entities are exempt from the scope of DORA according to the passage?"
-  question_fr: "Quelles entités sont exemptées du champ d’application du DORA selon le passage ?"
+  question_en: "Which kinds of financial firms does DORA leave out because they are already exempt or only lightly regulated under their sector rules?"
+  question_fr: "Quelles catégories d'entités financières DORA laisse-t-il en dehors de son champ parce qu'elles sont déjà exemptées ou peu réglementées par leur droit sectoriel ?"
   ground_truth: |-
-    Certaines entités financières bénéficient d’exemptions ou sont soumises à un cadre
-    réglementaire très léger en vertu du droit sectoriel applicable de l’Union. Ces entités
-    financières comprennent les gestionnaires de fonds d’investissement alternatifs visés à
-    l’article 3, paragraphe 2, de la directive 2011/61/UE du Parlement européen et du
-    Conseil (16), les entreprises d’assurance et de réassurance visées à l’article 4 de la
-    directive 2009/138/CE du Parlement européen et du Conseil (17) et les institutions de
-    retraite professionnelle gérant des régimes de retraite qui, ensemble, n’ont pas plus de
-    quinze affiliés au total.
+    Les gestionnaires de fonds d'investissement alternatifs visés à l'article 3, paragraphe
+    2, de la directive 2011/61/UE, les entreprises d'assurance et de réassurance visées à
+    l'article 4 de la directive 2009/138/CE et les institutions de retraite professionnelle
+    gérant des régimes de retraite qui, ensemble, n'ont pas plus de quinze affiliés au total
+    ne sont pas incluses dans le champ d'application de DORA, car ce ne serait pas
+    proportionné. Les intermédiaires d'assurance, de réassurance et à titre accessoire qui
+    sont des microentreprises ou des PME ne devraient pas non plus relever du règlement.
   key_facts:
-    - fact: "gestionnaires de fonds d’investissement alternatifs"
-      pattern: 'gestionnaires\s+de\s+fonds\s+d[''’]investissement\s+alternatifs'
-    - fact: "entreprises d’assurance et de réassurance"
-      pattern: 'entreprises\s+d[''’]assurance\s+et\s+de\s+réassurance'
+    - fact: "au plus quinze affiliés"
+      pattern: '(quinze|fifteen|15)\s+(affiliés|members)'
+    - fact: "gestionnaires de fonds d'investissement alternatifs"
+      pattern: '(fonds\s+d.investissement\s+alternatifs|alternative\s+investment\s+fund)'
     - fact: "institutions de retraite professionnelle"
-      pattern: 'institutions\s+de\s+retraite\s+professionnelle'
-    - fact: "quinze affiliés"
-      pattern: 'quinze\s+affiliés'
+      pattern: '(retraite\s+professionnelle|occupational\s+retirement|pension)'
   source_chunk_ids: [dora_fr::structure::0041]
   expected: {"work_id": "dora", "markers": ["Recital 39]", "Considérant 39]"]}
-  notes: null
+  notes: "rewrite proposed by Claude (5.4-B) - verify against SOURCE"
 
 # ========================================================================================
 # S16 · dora · fr · recital · copy 0.64 · flags: -
@@ -767,28 +752,26 @@
 #   habilitée, moyennant préavis, à inspecter et à auditer le prestataire tiers de services
 #   TIC, dans le respect de la protection des informations confidentielles.
 - seed_id: S16
-  decision: todo
+  decision: accept
   drop_reason: null
   question_language: auto
-  question_en: "What rights should contracts for critical or important IT service provision include for financial entities or their designated third parties?"
-  question_fr: "Quels droits devraient inclure les contrats de fourniture de services TIC critiques ou importants pour les entités financières ou leurs tiers désignés?"
+  question_en: "Under DORA, what rights should a bank keep in its contract with an ICT provider that supports critical or important functions?"
+  question_fr: "Selon DORA, quels droits une banque doit-elle conserver dans son contrat avec un prestataire TIC qui soutient des fonctions critiques ou importantes ?"
   ground_truth: |-
     Les contrats de fourniture de services TIC qui soutiennent des fonctions critiques ou
-    importantes devraient également contenir des dispositions permettant l’exercice des
-    droits d’accès, d’inspection et d’audit par l’entité financière ou par un tiers désigné,
-    et le droit de prendre des copies.
+    importantes devraient permettre l'exercice des droits d'accès, d'inspection et d'audit
+    par l'entité financière ou par un tiers désigné, ainsi que le droit de prendre des
+    copies, pour assurer un suivi permanent des performances du prestataire. L'autorité
+    compétente de l'entité financière devrait aussi pouvoir, moyennant préavis, inspecter et
+    auditer le prestataire tiers de services TIC.
   key_facts:
-    - fact: "droits d'accès"
-      pattern: 'droits\s+d[''’]accès'
-    - fact: "d'inspection"
-      pattern: 'd[''’]inspection'
-    - fact: "d'audit"
-      pattern: 'd[''’]audit'
-    - fact: "prendre des copies"
-      pattern: 'prendre\s+des\s+copies'
+    - fact: "droits d'accès, d'inspection et d'audit"
+      pattern: '(inspection\s+et\s+d.audit|inspection\s+and\s+audit)'
+    - fact: "droit de prendre des copies"
+      pattern: '(prendre\s+des\s+copies|take\s+copies|copies)'
   source_chunk_ids: [dora_fr::structure::0077]
   expected: {"work_id": "dora", "markers": ["Recital 73]", "Considérant 73]"]}
-  notes: null
+  notes: "rewrite proposed by Claude (5.4-B) - verify against SOURCE"
 
 # ========================================================================================
 # S17 · dora · fr · article · copy 0.67 · flags: evidence not verbatim, facts 1/2 in source
@@ -818,8 +801,8 @@
 #   d) de détailler davantage les composantes de la politique de continuité des activités de
 #   TIC visée à l’article 11, paragraphe 1;
 - seed_id: S17
-  decision: todo
-  drop_reason: null
+  decision: drop
+  drop_reason: "mandate for ESAs' draft RTS: list of drafting objectives, not an obligation users ask about"
   question_language: auto
   question_en: "What must AESs and ENISA collaborate on to ensure the security of networks and data integrity under DORA?"
   question_fr: "Quels projets communs doivent les AES et l'ENISA élaborer pour garantir la sécurité des réseaux et l'intégrité des données dans le cadre de DORA ?"
@@ -867,28 +850,28 @@
 #   conception et d’exécution du test; et
 #   c) le fournisseur de renseignements sur les menaces est externe à l’entité financière.
 - seed_id: S18
-  decision: todo
+  decision: accept
   drop_reason: null
   question_language: auto
-  question_en: "What conditions must be met when financial entities use internal testers for penetration tests based on threat?"
-  question_fr: "Quelles conditions doivent être remplies lorsque les entités financières utilisent des testeurs internes pour des tests de pénétration fondés sur la menace ?"
+  question_en: "Under DORA, what extra conditions apply if a financial entity wants to use its own internal testers for threat-led penetration testing?"
+  question_fr: "Selon DORA, quelles conditions supplémentaires s'appliquent lorsqu'une entité financière veut confier ses tests de pénétration fondés sur la menace à ses propres testeurs internes ?"
   ground_truth: |-
-    Les entités financières doivent s'assurer que le recours à ces testeurs internes a été
-    approuvé par l'autorité compétente, que l'entité dispose des ressources suffisantes et
-    que les conflits d'intérêts sont évités, et que le fournisseur de renseignements sur les
-    menaces est externe à l'entité financière.
+    En plus des exigences applicables à tous les testeurs (paragraphe 1), le recours aux
+    testeurs internes doit avoir été approuvé par l'autorité compétente concernée ou par
+    l'autorité publique unique désignée ; l'autorité compétente doit avoir vérifié que
+    l'entité financière dispose de ressources suffisantes et veillé à éviter les conflits
+    d'intérêts pendant la conception et l'exécution du test ; et le fournisseur de
+    renseignements sur les menaces doit être externe à l'entité financière.
   key_facts:
-    - fact: "recours à ces testeurs internes a été approuvé"
-      pattern: 'recours\s+à\s+ces\s+testeurs\s+internes\s+a\s+été\s+approuvé'
-    - fact: "l'entité financière dispose des ressources suffisantes"
-      pattern: 'l[''’]entité\s+financière\s+dispose\s+des\s+ressources\s+suffisantes'
-    - fact: "les conflits d'intérêts sont évités"
-      pattern: 'les\s+conflits\s+d[''’]intérêts\s+sont\s+évités'
-    - fact: "le fournisseur de renseignements sur les menaces est externe à l'entité financière"
-      pattern: 'le\s+fournisseur\s+de\s+renseignements\s+sur\s+les\s+menaces\s+est\s+externe\s+à\s+l[''’]entité\s+financière'
+    - fact: "approuvé par l'autorité compétente"
+      pattern: '(approuvé|approved)'
+    - fact: "fournisseur de renseignements sur les menaces externe"
+      pattern: '(externe|external)'
+    - fact: "conflits d'intérêts"
+      pattern: '(conflits?\s+d.intérêts|conflicts?\s+of\s+interest)'
   source_chunk_ids: [dora_fr::structure::0175]
   expected: {"work_id": "dora", "articles": ["27"], "markers": ["Article 27 Exigences applicables aux testeurs afin de réaliser des tests de pénétration fondés sur la menace"]}
-  notes: null
+  notes: "Article 27(2). rewrite proposed by Claude (5.4-B) - verify against SOURCE"
 
 # ========================================================================================
 # S19 · dora · fr · article · copy 0.83 · flags: mentions passage/document/article
@@ -914,8 +897,8 @@
 #   elle les communique, qu’elles peuvent être divulguées, ou si cette divulgation est
 #   nécessaire aux fins d’une procédure judiciaire.
 - seed_id: S19
-  decision: todo
-  drop_reason: null
+  decision: drop
+  drop_reason: "quota: DORA slots taken by S15/S16/S18"
   question_language: auto
   question_en: "Who is subject to the duty of confidentiality under DORA Article 55?"
   question_fr: "Qui est soumis à l’obligation de secret professionnel selon l’article 55 de DORA ?"
@@ -955,27 +938,27 @@
 #   interne, et intégration de méthodes explicatives afin d’assurer non seulement le contrôle
 #   permanent mais aussi les missions d’audit.
 - seed_id: S20
-  decision: todo
+  decision: accept
   drop_reason: null
   question_language: auto
-  question_en: "What are the key governance impacts of introducing ML in internal credit scoring models?"
-  question_fr: "Quels sont les impacts de gouvernance principaux de l'introduction de l'IA dans les modèles internes d'octroi de crédit?"
+  question_en: "According to the ACPR's 2020 discussion paper on AI governance, how did bringing machine learning into credit-scoring models change governance?"
+  question_fr: "D'après le document de réflexion de l'ACPR de 2020 sur la gouvernance de l'IA, quels changements de gouvernance l'introduction du machine learning dans les modèles d'octroi de crédit a-t-elle entraînés ?"
   ground_truth: |-
-    Les impacts de gouvernance principaux de l'introduction de l'IA sont une technicité
-    accrue du processus de validation initiale, la mise en place d'outils de monitoring pour
-    le contrôle interne, et l'intégration de méthodes explicatives.
+    Les deux scénarios étudiés (un grand groupe bancaire et un cabinet de conseil) ont
+    montré trois impacts de gouvernance : une technicité accrue du processus de validation
+    initiale, la mise en place d'outils de monitoring pour le contrôle interne, et
+    l'intégration de méthodes explicatives afin d'assurer le contrôle permanent ainsi que
+    les missions d'audit.
   key_facts:
-    - fact: "technicité accrue"
-      pattern: 'technicité\s+accrue'
-    - fact: "processus de validation initiale"
-      pattern: 'processus\s+de\s+validation\s+initiale'
+    - fact: "validation initiale"
+      pattern: '(validation\s+initiale|initial\s+validation)'
     - fact: "outils de monitoring"
-      pattern: 'outils\s+de\s+monitoring'
-    - fact: "contrôle interne"
-      pattern: 'contrôle\s+interne'
+      pattern: 'monitoring'
+    - fact: "méthodes explicatives"
+      pattern: '(méthodes\s+explicatives|explanat\w*\s+methods|explainability\s+methods)'
   source_chunk_ids: [acpr_ia_gouvernance_fr::structure::0008]
   expected: {"work_id": "acpr_ia_2020", "sections": ["Juin 2020 Gouvernance des algorithmes d’intelligence artificielle dans le secteur financier Document de réflexion AUTEURS Laurent Dupont, Olivier Fliche, Su Yang Pôle Fintech-Innovation, ACPR > 2.2. Travaux exploratoires > 2.2.2. Thème 2 : Modèles internes en banque et assurance"]}
-  notes: null
+  notes: "rewrite proposed by Claude (5.4-B) - verify against SOURCE"
 
 # ========================================================================================
 # S21 · acpr_ia_2020 · fr · body · copy 1.0 · flags: mentions passage/document/article
@@ -990,8 +973,8 @@
 #   suggestions sont basées sur une première analyse du marché – analyse dont ce document vise
 #   à valider ou corriger les résultats (voir « Consultation publique »).
 - seed_id: S21
-  decision: todo
-  drop_reason: null
+  decision: drop
+  drop_reason: "asks about the document itself (meta)"
   question_language: auto
   question_en: "What does the document propose to illustrate about the levels of explanation?"
   question_fr: "Quel est le but de ce document pour illustrer les niveaux d’explication?"
@@ -1028,22 +1011,24 @@
 #   des instituts spécialisés (par exemple dans le domaine de la conformité en banque, de
 #   l‘actuariat, etc.).
 - seed_id: S22
-  decision: todo
+  decision: accept
   drop_reason: null
   question_language: auto
-  question_en: "Is there a need for training in Data Science for supervisors?"
-  question_fr: "Existe-t-il une nécessité d'une formation en Data Science pour les superviseurs?"
+  question_en: "Where does the ACPR's 2020 paper on AI governance suggest supervisors could be trained in data science?"
+  question_fr: "Selon le document de l'ACPR de 2020 sur la gouvernance de l'IA, où les superviseurs pourraient-ils être formés à la data science ?"
   ground_truth: |-
-    Formation en Data Science pourrait être pertinente pour permettre et accompagner
-    l'adaptation des méthodes, outils et données du superviseur.
+    Pour accompagner l'adaptation des méthodes, outils et données du superviseur, le
+    document évoque une formation en Data Science soit chez le superviseur – ce qui est
+    envisagé au sein de l'ACPR –, soit dans des instituts spécialisés (par exemple dans le
+    domaine de la conformité en banque ou de l'actuariat).
   key_facts:
-    - fact: "formation en Data Science"
-      pattern: 'formation\s+en\s+Data\s+Science'
-    - fact: "adaptation des méthodes, outils et données du superviseur"
-      pattern: 'adaptation\s+des\s+méthodes,\s+outils\s+et\s+données\s+du\s+superviseur'
+    - fact: "envisagé au sein de l'ACPR"
+      pattern: '(au\s+sein\s+de\s+l.ACPR|within\s+the\s+ACPR)'
+    - fact: "instituts spécialisés"
+      pattern: '(instituts\s+spécialisés|speciali[sz]ed\s+institutes)'
   source_chunk_ids: [acpr_ia_gouvernance_fr::structure::0089]
   expected: {"work_id": "acpr_ia_2020", "sections": ["Juin 2020 Gouvernance des algorithmes d’intelligence artificielle dans le secteur financier Document de réflexion AUTEURS Laurent Dupont, Olivier Fliche, Su Yang Pôle Fintech-Innovation, ACPR > ÉVALUATION EMPIRIQUE DU ML > 5.5.2. Enjeux spécifiques aux superviseurs"]}
-  notes: null
+  notes: "7b draft was a yes/no question. rewrite proposed by Claude (5.4-B) - verify against SOURCE"
 
 # ========================================================================================
 # S23 · acpr_ia_2020 · fr · body · copy 0.8 · flags: mentions passage/document/article
@@ -1064,8 +1049,8 @@
 #   lecteur, pour éclairer les enseignements généraux tirés par l’ACPR dans le présent
 #   document de réflexion.
 - seed_id: S23
-  decision: todo
-  drop_reason: null
+  decision: drop
+  drop_reason: "asks about the purpose of the annex (meta)"
   question_language: auto
   question_en: "What is the purpose of the annexes in the AI workshops according to the passage?"
   question_fr: "Quel est l'objectif des annexes dans les ateliers sur l'IA selon le passage ?"
@@ -1106,25 +1091,24 @@
 #   temporelle glissante.
 #   Enjeux de gouvernance
 - seed_id: S24
-  decision: todo
+  decision: accept
   drop_reason: null
   question_language: auto
-  question_en: "What additional condition must be met for an alert to be generated by the ML tool?"
-  question_fr: "Quelle condition supplémentaire doit être remplie pour que l'alerte soit générée par l'outil de ML?"
+  question_en: "In the ACPR's anti-money-laundering workshop, when does the bank's ML model actually raise an alert for a high-scoring transaction?"
+  question_fr: "Dans l'atelier LCB-FT décrit par l'ACPR, à quelle condition le modèle de ML de la banque génère-t-il une alerte pour une transaction ayant un score élevé ?"
   ground_truth: |-
-    Une alerte déclenchée par l’outil de ML est une alerte ayant obtenu un score élevé et
-    qui est passée sous les seuils de détection du moteur de règles métier dans les trois
-    mois précédents.
+    Dans l'atelier complémentaire LCB-FT, un filtre fait qu'une transaction ayant obtenu un
+    score élevé par le modèle de ML ne génère une alerte que si aucune alerte n'a été levée
+    par le moteur de règles métier sur ce même client dans les trois mois précédents. Ces
+    alertes supplémentaires sont envoyées directement au niveau N2.
   key_facts:
-    - fact: "score élevé"
-      pattern: 'score\s+élevé'
-    - fact: "seuils de détection"
-      pattern: 'seuils\s+de\s+détection'
-    - fact: "trois mois précédents"
-      pattern: 'trois\s+mois\s+précédents'
+    - fact: "dans les trois mois précédents"
+      pattern: '(trois\s+mois|three\s+months|3\s+mois)'
+    - fact: "aucune alerte du moteur de règles métier"
+      pattern: '(moteur\s+de\s+règles|rules?\s+engine|business\s+rules)'
   source_chunk_ids: [acpr_ia_gouvernance_fr::structure::0130]
   expected: {"work_id": "acpr_ia_2020", "sections": ["Annexes > 8.1. Atelier « LCB-FT » > 8.1.9. Atelier complémentaire"]}
-  notes: null
+  notes: "rewrite proposed by Claude (5.4-B) - verify against SOURCE"
 
 # ========================================================================================
 # S25 · acpr_ia_2020 · fr · body · copy 0.86 · flags: facts 3/4 in source
@@ -1143,31 +1127,28 @@
 #   enfin, les méthodes explicatives post-modélisation tentent de produire des explications
 #   satisfaisantes à partir de modèles préalablement conçus et entraînés.
 - seed_id: S25
-  decision: todo
+  decision: accept
   drop_reason: null
   question_language: auto
-  question_en: "What are the three categories of explainability methods according to the ACPR IA 2020 annexes?"
-  question_fr: "Quelles sont les trois catégories des méthodes d’explication selon les annexes de l’ACPR IA 2020 ?"
+  question_en: "How does the ACPR's 2020 paper on AI governance classify explainability methods for machine learning?"
+  question_fr: "Comment le document de réflexion de l'ACPR de 2020 classe-t-il les méthodes d'explicabilité en machine learning ?"
   ground_truth: |-
-    Les méthodes d’explication se répartissent alors classiquement en trois catégories selon
-    la phase de la conception et de l’utilisation du modèle sous-jacent : 1. les méthodes
-    explicatives pré-modélisation visent à comprendre et décrire les données utilisées dans
-    la production des modèles ; 2. les méthodes explicatives conjointes à la modélisation
-    contribuent à la conception de modèles intrinsèquement plus explicables ; 3. enfin, les
-    méthodes explicatives post-modélisation tentent de produire des explications
-    satisfaisantes à partir de modèles préalablement conçus et entraînés.
+    Les méthodes d'explication se répartissent en trois catégories selon la phase de
+    conception et d'utilisation du modèle : les méthodes pré-modélisation, qui visent à
+    comprendre et décrire les données utilisées ; les méthodes conjointes à la modélisation,
+    qui contribuent à concevoir des modèles intrinsèquement plus explicables ; et les
+    méthodes post-modélisation, qui produisent des explications à partir de modèles déjà
+    conçus et entraînés.
   key_facts:
     - fact: "trois catégories"
-      pattern: 'trois\s+catégories'
+      pattern: '(trois|three)\s+(catégories|categories)'
     - fact: "pré-modélisation"
-      pattern: 'pré\-modélisation'
-    - fact: "conjonctement à la modélisation"
-      pattern: 'conjonctement\s+à\s+la\s+modélisation'
+      pattern: '(pré-modélisation|pre-model)'
     - fact: "post-modélisation"
-      pattern: 'post\-modélisation'
+      pattern: '(post-modélisation|post-model|post-hoc)'
   source_chunk_ids: [acpr_ia_gouvernance_fr::structure::0178]
   expected: {"work_id": "acpr_ia_2020", "sections": ["Annexes > 11. Recension des méthodes explicatives en IA"]}
-  notes: null
+  notes: "rewrite proposed by Claude (5.4-B) - verify against SOURCE"
 
 # ========================================================================================
 # S26 · eba_gl_2019_02 · en · body · copy 1.0 · flags: evidence not verbatim
@@ -1204,38 +1185,31 @@
 #   together with the outcome of the risk assessment outlined in Section 12.2, at least the
 #   following factors:
 - seed_id: S26
-  decision: todo
+  decision: accept
   drop_reason: null
   question_language: auto
-  question_en: "What must institutions consider when assessing the criticality or importance of functions in outsourcing arrangements?"
-  question_fr: "Quels facteurs doivent les institutions prendre en compte lors de l'évaluation de la criticité ou de l'importance des fonctions dans les arrangements de cession?"
+  question_en: "According to the EBA outsourcing guidelines, in which situations must a bank always treat an outsourced function as critical or important?"
+  question_fr: "Selon les orientations de l'ABE sur l'externalisation, dans quels cas une banque doit-elle toujours considérer une fonction externalisée comme critique ou importante ?"
   ground_truth: |-
-    Institutions and payment institutions should consider a function as critical or
-    important in the following situations: where a defect or failure in its performance
-    would materially impair their continuing compliance with the conditions of their
-    authorisation or its other obligations under various directives and regulations; their
-    financial performance; or the soundness or continuity of their banking and payment
-    services and activities; when operational tasks of internal control functions are
-    outsourced, unless the assessment establishes that a failure to provide the outsourced
-    function or the inappropriate provision of the outsourced function would not have an
-    adverse impact on the effectiveness of the internal control function; when they intend
-    to outsource functions of banking activities or payment services to an extent that would
-    require authorisation by a competent authority; and when assessing whether an
-    outsourcing arrangement relates to a function that is critical or important,
-    institutions and payment institutions should take into account, together with the
-    outcome of the risk assessment outlined in Section 12.2, at least the following factors.
+    Institutions and payment institutions should always consider a function as critical or
+    important (a) where a defect or failure in its performance would materially impair their
+    continuing compliance with their authorisation conditions or regulatory obligations,
+    their financial performance, or the soundness or continuity of their banking and payment
+    services; (b) when operational tasks of internal control functions are outsourced,
+    unless the assessment shows that a failure would not adversely affect the effectiveness
+    of the internal control function; and (c) when they intend to outsource banking or
+    payment activities to an extent that would require authorisation by a competent
+    authority.
   key_facts:
     - fact: "materially impair"
-      pattern: 'materially\s+impair'
-    - fact: "authorisation or its other obligations"
-      pattern: 'authorisation\s+or\s+its\s+other\s+obligations'
-    - fact: "financial performance"
-      pattern: 'financial\s+performance'
-    - fact: "soundness or continuity of their banking and payment services and activities"
-      pattern: 'soundness\s+or\s+continuity\s+of\s+their\s+banking\s+and\s+payment\s+services\s+and\s+activities'
+      pattern: '(materially\s+impair|gravement|sensiblement|de\s+manière\s+significative)'
+    - fact: "internal control functions"
+      pattern: '(internal\s+control|contrôle\s+interne)'
+    - fact: "would require authorisation"
+      pattern: '(authori[sz]ation|autorisation|agrément)'
   source_chunk_ids: [eba_gl_outsourcing_en::structure::0034]
   expected: {"work_id": "eba_gl_2019_02", "sections": ["4. Guidelines on outsourcing > Title II – Assessment of outsourcing arrangements > 4 Critical or important functions"]}
-  notes: null
+  notes: "Paragraph 29 of the guidelines: numbered paragraphs can trigger P38 (paragraph number cited as a passage number). The 7b ground truth merged paragraphs 29 and 31. rewrite proposed by Claude (5.4-B) - verify against SOURCE"
 
 # ========================================================================================
 # S27 · eba_gl_2019_02 · en · body · copy 1.0 · flags: -
@@ -1276,27 +1250,29 @@
 #   information;
 #   e. an appropriate flow of relevant information with service providers is maintained;
 - seed_id: S27
-  decision: todo
+  decision: accept
   drop_reason: null
   question_language: auto
-  question_en: "What should institutions and payment institutions ensure when outsourcing critical or important functions?"
-  question_fr: "Quels sont les garanties que devraient assurer les établissements et les institutions de paiement lors de la cession de fonctions critiques ou importantes?"
+  question_en: "When outsourcing, what must a bank do so that it does not become an 'empty shell', according to the EBA outsourcing guidelines?"
+  question_fr: "Selon les orientations de l'ABE sur l'externalisation, que doit faire une banque qui externalise pour ne pas devenir une « coquille vide » ?"
   ground_truth: |-
-    Institutions and payment institutions should ensure that they can take and implement
-    decisions related to their business activities and critical or important functions,
-    including with regard to those that have been outsourced.
+    Institutions and payment institutions should maintain sufficient substance at all times
+    and not become 'empty shells' or 'letter-box entities'. To this end they should meet all
+    the conditions of their authorisation at all times, retain a clear and transparent
+    organisational framework and structure that ensures compliance with legal and regulatory
+    requirements, exercise appropriate oversight and manage the risks where operational
+    tasks of internal control functions are outsourced, and have sufficient resources and
+    capacities to do so.
   key_facts:
-    - fact: "take and implement decisions"
-      pattern: 'take\s+and\s+implement\s+decisions'
-    - fact: "related to their business activities"
-      pattern: 'related\s+to\s+their\s+business\s+activities'
-    - fact: "critical or important functions"
-      pattern: 'critical\s+or\s+important\s+functions'
-    - fact: "outsourced"
-      pattern: 'outsourced'
+    - fact: "not become empty shells or letter-box entities"
+      pattern: '(letter-box|boîtes?\s+aux\s+lettres|coquilles?\s+vides?|empty\s+shells?)'
+    - fact: "sufficient substance"
+      pattern: '(sufficient\s+substance|substance\s+suffisante)'
+    - fact: "conditions of their authorisation"
+      pattern: '(authori[sz]ation|autorisation|agrément)'
   source_chunk_ids: [eba_gl_outsourcing_en::structure::0039]
   expected: {"work_id": "eba_gl_2019_02", "sections": ["4. Guidelines on outsourcing > Title III – Governance framework > 6 Sound governance arrangements and outsourcing"]}
-  notes: null
+  notes: "Paragraph 39 (the source chunk also holds 38-40). rewrite proposed by Claude (5.4-B) - verify against SOURCE"
 
 # ========================================================================================
 # S28 · eba_gl_2019_02 · en · body · copy 1.0 · flags: facts 3/4 in source
@@ -1335,8 +1311,8 @@
 #   transition of activities;
 #   d. define success criteria for the transition of outsourced functions and data; and
 - seed_id: S28
-  decision: todo
-  drop_reason: null
+  decision: drop
+  drop_reason: "quota: EBA 2019/02 slots taken by S26 (numbered paragraphs, P38) and S27"
   question_language: auto
   question_en: "What should institutions and payment institutions ensure when developing exit strategies for outsourcing critical or important functions?"
   question_fr: "Quels sont les aspects que les institutions et les établissements de paiement doivent assurer lors du développement de stratégies de sortie pour l'externalisation de fonctions critiques ou importantes?"
@@ -1385,8 +1361,8 @@
 #   the weakest link principle, cybersecurity should not only be a concern for major market
 #   participants and critical service providers.
 - seed_id: S29
-  decision: todo
-  drop_reason: null
+  decision: drop
+  drop_reason: "Background and rationale (non-normative); the 5.2 filter missed it ('^background' does not match '2. Background')"
   question_language: auto
   question_en: "What specific characteristic of cyber-attacks makes them difficult to manage according to the guidelines?"
   question_fr: "Quelle caractéristique spécifique des attaques par cybersécurité rend ces dernières difficiles à gérer selon les directives?"
@@ -1416,27 +1392,27 @@
 #   other internal and external systems and processes, to be able to, at least, manage the
 #   information assets that support their critical business functions and processes.
 - seed_id: S30
-  decision: todo
+  decision: accept
   drop_reason: null
   question_language: auto
-  question_en: "What should financial institutions map according to EBA GL 2019 04?"
-  question_fr: "Quels éléments devraient les institutions financières identifier selon l'AI Act 2019 04?"
+  question_en: "What mapping exercise do the EBA ICT and security risk guidelines expect from financial institutions?"
+  question_fr: "Quel exercice de cartographie les orientations de l'ABE sur la gestion des risques liés aux TIC et à la sécurité attendent-elles des établissements financiers ?"
   ground_truth: |-
-    Financial institutions should map their business functions, roles, supporting processes,
-    and information assets such as ICT systems, staff, contractors, third parties, and
-    dependencies on other internal and external systems and processes.
+    Financial institutions should identify, establish and keep updated a mapping of their
+    business functions, roles and supporting processes, to identify the importance of each
+    and their interdependencies related to ICT and security risks. They should also keep an
+    updated mapping of the information assets supporting those functions and processes, such
+    as ICT systems, staff, contractors, third parties and dependencies on other internal and
+    external systems and processes, so as to manage at least the assets that support their
+    critical business functions.
   key_facts:
-    - fact: "business functions"
-      pattern: 'business\s+functions'
-    - fact: "roles"
-      pattern: 'roles'
-    - fact: "supporting processes"
-      pattern: 'supporting\s+processes'
+    - fact: "interdependencies"
+      pattern: '(interdependenc|interdépendances)'
     - fact: "information assets"
-      pattern: 'information\s+assets'
+      pattern: '(information\s+assets|actifs\s+informationnels|actifs\s+d.information)'
   source_chunk_ids: [eba_gl_ict_security_en::structure::0026]
   expected: {"work_id": "eba_gl_2019_04", "sections": ["Guidelines on ICT and security risk management > 3.3. ICT and security risk management framework > 3.3.2. Identification of functions, processes and assets"]}
-  notes: null
+  notes: "rewrite proposed by Claude (5.4-B) - verify against SOURCE"
 
 # ========================================================================================
 # S31 · eba_gl_2019_04 · en · body · copy 1.0 · flags: evidence not verbatim
@@ -1469,29 +1445,27 @@
 #   ICT systems and services, as well as the financial institution’s information security, are
 #   ensured.
 - seed_id: S31
-  decision: todo
+  decision: accept
   drop_reason: null
   question_language: auto
-  question_en: "What should financial institutions consider in their business continuity plans to ensure the continuity of ICT systems and services, and the institution’s information security?"
-  question_fr: "Quelles scénarios les établissements de crédit doivent-ils prendre en compte dans leurs plans de continuité d'activité pour assurer la continuité des systèmes et services ICT et la sécurité de l'information de l'établissement?"
+  question_en: "In the EBA ICT and security risk guidelines, what do RTO and RPO mean for business continuity plans?"
+  question_fr: "Dans les orientations de l'ABE sur les risques liés aux TIC et à la sécurité, que signifient RTO et RPO pour les plans de continuité d'activité ?"
   ground_truth: |-
-    Financial institutions should consider a range of different scenarios, including extreme
-    but plausible ones to which they might be exposed, and assess the potential impact that
-    such scenarios might have. Based on these scenarios, a financial institution should
-    describe how the continuity of ICT systems and services, as well as the financial
-    institution’s information security, are ensured.
+    Business continuity plans should allow financial institutions to recover the operations
+    of their critical business activities after disruptions within a recovery time objective
+    (RTO), the maximum time within which a system or process must be restored after an
+    incident, and a recovery point objective (RPO), the maximum time period during which it
+    is acceptable for data to be lost in the event of an incident.
   key_facts:
-    - fact: "range of different scenarios"
-      pattern: 'range\s+of\s+different\s+scenarios'
-    - fact: "extreme but plausible ones"
-      pattern: 'extreme\s+but\s+plausible\s+ones'
-    - fact: "assess the potential impact"
-      pattern: 'assess\s+the\s+potential\s+impact'
-    - fact: "describe how the continuity of ICT systems and services, as well as the financial institution’s information security, are ensured"
-      pattern: 'describe\s+how\s+the\s+continuity\s+of\s+ICT\s+systems\s+and\s+services,\s+as\s+well\s+as\s+the\s+financial\s+institution[''’]s\s+information\s+security,\s+are\s+ensured'
+    - fact: "recovery time objective"
+      pattern: '(recovery\s+time\s+objective|RTO)'
+    - fact: "recovery point objective"
+      pattern: '(recovery\s+point\s+objective|RPO)'
+    - fact: "data loss period"
+      pattern: '(data\s+to\s+be\s+lost|perte\s+de\s+données|données\s+(peuvent\s+être\s+)?perdues)'
   source_chunk_ids: [eba_gl_ict_security_en::structure::0051]
   expected: {"work_id": "eba_gl_2019_04", "sections": ["Guidelines on ICT and security risk management > 3.7. Business continuity management > 3.7.2. Business continuity planning"]}
-  notes: null
+  notes: "rewrite proposed by Claude (5.4-B) - verify against SOURCE"
 
 # ========================================================================================
 # S32 · eba_gl_2020_06 · en · body · copy 0.71 · flags: evidence not verbatim, facts 3/4 in source, mentions passage/document/article
@@ -1530,8 +1504,8 @@
 #   product type-specific and should duly consider the type, size and complexity of the credit
 #   facilities being granted;
 - seed_id: S32
-  decision: todo
-  drop_reason: null
+  decision: drop
+  drop_reason: "list 38 (a)-(f) cut mid-list; no single clear answer"
   question_language: auto
   question_en: "What should credit risk policies and procedures include according to the passage?"
   question_fr: "Quels éléments devraient inclure les politiques et procédures de gestion des risques de crédit selon le passage ?"
@@ -1587,26 +1561,28 @@
 #   any guarantees, letters of credit or similar documents issued on behalf of the supplier in
 #   the transaction.
 - seed_id: S33
-  decision: todo
+  decision: accept
   drop_reason: null
   question_language: auto
-  question_en: "What should institutions assess when a loan agreement involves guarantees from third parties?"
-  question_fr: "Quels éléments doivent les institutions évaluer lorsque l'accord de prêt comporte des garanties de tiers ?"
+  question_en: "Under the EBA loan origination guidelines, how should a bank handle a third-party guarantee on a loan to a company?"
+  question_fr: "Selon les orientations de l'ABE sur l'octroi et le suivi des prêts, comment une banque doit-elle traiter la garantie d'un tiers sur un prêt à une entreprise ?"
   ground_truth: |-
-    Institutions should assess the level of protection provided by the guarantee and, if
-    relevant, conduct a creditworthiness assessment of the guarantor, applying the relevant
-    provisions of these guidelines, depending on whether the guarantor is a natural person
-    or an enterprise.
+    If a loan agreement involves any form of guarantee from third parties, institutions
+    should assess the level of protection provided by the guarantee and, if relevant, carry
+    out a creditworthiness assessment of the guarantor, applying the relevant provisions of
+    the guidelines depending on whether the guarantor is a natural person or an enterprise.
+    This assessment should be proportionate to the size of the guarantee relative to the
+    loan and to the type of guarantor.
   key_facts:
-    - fact: "assess the level of protection"
-      pattern: 'assess\s+the\s+level\s+of\s+protection'
-    - fact: "conduct a creditworthiness assessment of the guarantor"
-      pattern: 'conduct\s+a\s+creditworthiness\s+assessment\s+of\s+the\s+guarantor'
-    - fact: "applying the relevant provisions of these guidelines"
-      pattern: 'applying\s+the\s+relevant\s+provisions\s+of\s+these\s+guidelines'
+    - fact: "creditworthiness assessment of the guarantor"
+      pattern: '(guarantor|garant)'
+    - fact: "level of protection"
+      pattern: '(level\s+of\s+protection|niveau\s+de\s+protection)'
+    - fact: "proportionate to the size of the guarantee"
+      pattern: '(proportionate|proportionn)'
   source_chunk_ids: [eba_gl_loan_origination_en::structure::0073]
   expected: {"work_id": "eba_gl_2020_06", "sections": ["5. Loan origination procedures > 5.2 Assessment of borrower’s creditworthiness > 5.2.6 Lending to medium-sized and large enterprises"]}
-  notes: null
+  notes: "rewrite proposed by Claude (5.4-B) - verify against SOURCE"
 
 # ========================================================================================
 # S34 · eba_gl_2020_06 · en · body · copy 1.0 · flags: -
@@ -1639,29 +1615,25 @@
 #   deal with these ‘hung transactions’ in terms of holding strategy, booking and accounting
 #   practices, regulatory classification and subsequent capital requirements calculation.
 - seed_id: S34
-  decision: todo
+  decision: accept
   drop_reason: null
   question_language: auto
-  question_en: "What should institutions do if a leveraged transaction is not syndicated within 90 days of the commitment date?"
-  question_fr: "Quelles actions devraient les institutions prendre si une transaction à effet de levier n'est pas syndiquée dans les 90 jours suivant la date de la garantie?"
+  question_en: "According to the EBA loan origination guidelines, what is a 'hung transaction' in leveraged lending?"
+  question_fr: "Selon les orientations de l'ABE sur l'octroi et le suivi des prêts, qu'est-ce qu'une « hung transaction » dans le financement à effet de levier ?"
   ground_truth: |-
-    Institutions should identify transactions subject to failed syndications — that is,
-    transaction that were not syndicated within 90 days following the commitment date.
-    Institutions should establish a dedicated framework to deal with these ‘hung
-    transactions’ in terms of holding strategy, booking and accounting practices, regulatory
-    classification and subsequent capital requirements calculation.
+    Institutions engaged in syndicating leveraged transactions should identify failed
+    syndications, i.e. transactions that were not syndicated within 90 days following the
+    commitment date. They should set up a dedicated framework to deal with these 'hung
+    transactions' covering holding strategy, booking and accounting practices, regulatory
+    classification and the subsequent capital requirements calculation.
   key_facts:
     - fact: "90 days"
-      pattern: '90\s+days'
+      pattern: '90\s+(days|jours)'
     - fact: "commitment date"
-      pattern: 'commitment\s+date'
-    - fact: "failed syndications"
-      pattern: 'failed\s+syndications'
-    - fact: "hung transactions"
-      pattern: 'hung\s+transactions'
+      pattern: '(commitment\s+date|date\s+d.engagement)'
   source_chunk_ids: [eba_gl_loan_origination_en::structure::0099]
   expected: {"work_id": "eba_gl_2020_06", "sections": ["8. Monitoring framework > 8.2 Monitoring of credit exposures and borrowers"]}
-  notes: null
+  notes: "rewrite proposed by Claude (5.4-B) - verify against SOURCE"
 
 # ========================================================================================
 # S35 · eba_gl_2021_05 · en · body · copy 0.67 · flags: evidence not verbatim, facts 1/2 in source
@@ -1692,23 +1664,26 @@
 #   committees does not in any way release the management body in its supervisory function
 #   from collectively fulfilling its duties and responsibilities.
 - seed_id: S35
-  decision: todo
+  decision: accept
   drop_reason: null
   question_language: auto
-  question_en: "Which institutions are required to establish risk, nomination, and remuneration committees according to the EBA guidelines?"
-  question_fr: "Quelles institutions sont tenues d'établir des comités de risque, de nomination et de rémunération selon les lignes directrices de l'EBA ?"
+  question_en: "Under the EBA internal governance guidelines, which banks have to set up risk, nomination and remuneration committees?"
+  question_fr: "Selon les orientations de l'ABE sur la gouvernance interne, quels établissements doivent créer des comités des risques, des nominations et des rémunérations ?"
   ground_truth: |-
     All institutions that are themselves significant, considering the individual, sub-
     consolidated and consolidated levels, must establish risk, nomination and remuneration
+    committees to advise the management body in its supervisory function and prepare its
+    decisions. Non-significant institutions, including those within the scope of prudential
+    consolidation of a significant institution, are not obliged to establish those
     committees.
   key_facts:
-    - fact: "significant institutions"
-      pattern: 'significant\s+institutions'
-    - fact: "risk, nomination and remuneration committees"
-      pattern: 'risk,\s+nomination\s+and\s+remuneration\s+committees'
+    - fact: "institutions that are themselves significant"
+      pattern: '(themselves\s+significant|importantes?|significatives?)'
+    - fact: "non-significant institutions are not obliged"
+      pattern: '(not\s+obliged|pas\s+tenus?|pas\s+obligés?|pas\s+l.obligation)'
   source_chunk_ids: [eba_gl_internal_governance_en::structure::0048]
   expected: {"work_id": "eba_gl_2021_05", "sections": ["4. Guidelines > 5.1 Setting up committees"]}
-  notes: null
+  notes: "rewrite proposed by Claude (5.4-B) - verify against SOURCE"
 
 # ========================================================================================
 # S36 · eba_gl_2021_05 · en · body · copy 0.83 · flags: evidence not verbatim, facts 2/4 in source
@@ -1747,34 +1722,29 @@
 #   the total amount of all outstanding loans to members of the management body and their
 #   related parties.
 - seed_id: S36
-  decision: todo
+  decision: accept
   drop_reason: null
   question_language: auto
-  question_en: "What additional information must be provided to the competent authority for loans to management body members or their related parties exceeding EUR 200,000?"
-  question_fr: "Quelle information supplémentaire doit être fournie au pouvoir compétent pour les prêts accordés aux membres du conseil de direction ou à leurs parties liées excédant 200 000 euros?"
+  question_en: "Under the EBA internal governance guidelines, what extra information must a bank be able to give its supervisor about a large loan to a board member?"
+  question_fr: "Selon les orientations de l'ABE sur la gouvernance interne, quelles informations supplémentaires une banque doit-elle pouvoir fournir à son superviseur sur un prêt important accordé à un membre de l'organe de direction ?"
   ground_truth: |-
-    For a loan to a member of the management body or their related parties above an amount
-    of EUR 200,000, institutions should be able to provide to the competent authority upon
-    request the following additional information: a. the percentage of the loan and the
-    percentage of the sum of all outstanding amounts of loans towards the same debtor
-    compared to: i. the sum of its Tier 1 capital and Tier 2 capital and ii. common equity
-    Tier-1 capital of the institution; b. whether the loan is part of a large exposure; and
-    c. the relative weight of the aggregated sum of all outstanding amounts of loans towards
-    the same debtor, calculated as a percentage by dividing the total outstanding amount by
-    the total amount of all outstanding loans to members of the management body and their
-    related parties.
+    For a loan to a member of the management body or their related parties above EUR 200
+    000, institutions should be able to provide to the competent authority on request: the
+    percentage of the loan, and of all outstanding loans to the same debtor, compared with
+    the sum of Tier 1 and Tier 2 capital and with common equity Tier 1 capital; whether the
+    loan is part of a large exposure; and the relative weight of all outstanding loans to
+    that debtor as a percentage of all outstanding loans to members of the management body
+    and their related parties.
   key_facts:
-    - fact: "EUR 200,000"
-      pattern: 'EUR\s+200[\s,.]?000'
-    - fact: "the percentage of the loan"
-      pattern: 'the\s+percentage\s+of\s+the\s+loan'
-    - fact: "the percentage of the sum of all outstanding amounts of loans towards the same debtor"
-      pattern: 'the\s+percentage\s+of\s+the\s+sum\s+of\s+all\s+outstanding\s+amounts\s+of\s+loans\s+towards\s+the\s+same\s+debtor'
-    - fact: "the sum of its Tier 1 capital and Tier 2 capital and common equity Tier-1 capital of the institution (in that order)"
-      pattern: 'the\s+sum\s+of\s+its\s+Tier\s+1\s+capital\s+and\s+Tier\s+2\s+capital\s+and\s+common\s+equity\s+Tier\-1\s+capital\s+of\s+the\s+institution\s+\(in\s+that\s+order\)'
+    - fact: "above EUR 200 000"
+      pattern: '(EUR\s+200[\s,.]?000|200[\s,.]?000\s*(EUR|euros?))'
+    - fact: "whether part of a large exposure"
+      pattern: '(large\s+exposure|grands?\s+risques?)'
+    - fact: "compared with Tier 1 / CET1 capital"
+      pattern: '(tier\s*-?\s*1|CET\s*1|common\s+equity)'
   source_chunk_ids: [eba_gl_internal_governance_en::structure::0074]
   expected: {"work_id": "eba_gl_2021_05", "sections": ["4. Guidelines > 12.2 Documentation of loans to members of the management body and their related parties and additional information"]}
-  notes: null
+  notes: "P47: the 7b draft wrote 'EUR 200,000'; the source writes 'EUR 200 000'. rewrite proposed by Claude (5.4-B) - verify against SOURCE"
 
 # ========================================================================================
 # S37 · eba_gl_2021_05 · en · body · copy 0.88 · flags: facts 3/4 in source
@@ -1803,8 +1773,8 @@
 #   definitions of ‘new product/market/business’ and ‘significant changes’ to be used in the
 #   organisation and the internal functions to be involved in the decision-making process.
 - seed_id: S37
-  decision: todo
-  drop_reason: null
+  decision: drop
+  drop_reason: "quota: EBA 2021/05 slots taken by S35/S36"
   question_language: auto
   question_en: "What should an institution's new product approval policy (NPAP) cover according to the guidelines?"
   question_fr: "Quels aspects devrait couvrir la politique d'approbation des nouveaux produits (NPAP) selon les directives?"
@@ -1856,8 +1826,8 @@
 #   characteristics of ML might make it more challenging or easier to comply with the
 #   regulatory requirements for IRB models.
 - seed_id: S38
-  decision: todo
-  drop_reason: null
+  decision: drop
+  drop_reason: "asks about the document's history (EBA discussion paper of Nov 2021), not a regulatory question"
   question_language: auto
   question_en: "What did the EBA publish and consult on in November 2021?"
   question_fr: "Qu'a publié et consulté l'EBA en novembre 2021?"
@@ -1907,27 +1877,27 @@
 #   compliance with GDPR requirements could therefore be more difficult once ML techniques are
 #   used and would require additional review by financial institutions and supervisors.
 - seed_id: S39
-  decision: todo
+  decision: accept
   drop_reason: null
   question_language: auto
-  question_en: "What does the proposed CCD reference regarding personal data under Article 9 of the GDPR?"
-  question_fr: "Quel est le référencement des données personnelles prévues par le projet de directive sur le crédit au consommateur en vertu de l’article 9 de l’AI Act?"
+  question_en: "According to the EBA report on machine learning for IRB models, how does the April 2023 text of the proposed Consumer Credit Directive restrict the data used for creditworthiness assessment?"
+  question_fr: "D'après le rapport de l'ABE sur le machine learning pour les modèles NI, comment le texte d'avril 2023 de la proposition de directive sur le crédit aux consommateurs limite-t-il les données utilisables pour évaluer la solvabilité ?"
   ground_truth: |-
-    The proposed CCD refers to personal data under Article 9 of the GDPR when prohibiting
-    the use of specific personal data for creditworthiness assessment, also in the case
-    where data were received from databases located in other EU Member States.
+    The April 2023 text of the proposed CCD refers to personal data under Article 9 of the
+    GDPR when prohibiting the use of specific personal data for creditworthiness assessment,
+    also where the data were received from databases located in other Member States. It also
+    prohibits the use of data collected from social networks and refers to the GDPR data
+    minimisation principle in its requirements for assessing consumers' creditworthiness.
   key_facts:
-    - fact: "personal data"
-      pattern: 'personal\s+data'
-    - fact: "Article 9"
-      pattern: 'Article\s+9'
-    - fact: "GDPR"
-      pattern: 'GDPR'
-    - fact: "prohibiting the use of specific personal data for creditworthiness assessment"
-      pattern: 'prohibiting\s+the\s+use\s+of\s+specific\s+personal\s+data\s+for\s+creditworthiness\s+assessment'
+    - fact: "Article 9 of the GDPR"
+      pattern: 'article\s+9'
+    - fact: "social networks"
+      pattern: '(social\s+networks|réseaux\s+sociaux)'
+    - fact: "minimisation principle"
+      pattern: 'minimi[sz]ation'
   source_chunk_ids: [eba_ml_irb_report_en::structure::0020]
   expected: {"work_id": "eba_ml_irb_2023", "sections": ["5. Interaction with (non-CRR) regulatory frameworks > 5.1 Interaction with GDPR"]}
-  notes: null
+  notes: "rewrite proposed by Claude (5.4-B) - verify against SOURCE"
 
 # ========================================================================================
 # S40 · eba_ml_irb_2023 · en · body · copy 0.78 · flags: -
@@ -1957,23 +1927,26 @@
 #   In addition, to ensuring that the model is correctly interpreted and understood,
 #   institutions are recommended to:
 - seed_id: S40
-  decision: todo
+  decision: accept
   drop_reason: null
   question_language: auto
-  question_en: "What should institutions avoid when using ML models to ensure model explainability and simplicity?"
-  question_fr: "Quels sont les choses que les institutions doivent éviter lors de l'utilisation de modèles ML pour assurer la simplicité et l'explicabilité du modèle?"
+  question_en: "What does the EBA recommend banks avoid so that machine-learning IRB models do not become needlessly complex?"
+  question_fr: "Que recommande l'ABE d'éviter pour que les modèles NI fondés sur le machine learning ne deviennent pas inutilement complexes ?"
   ground_truth: |-
-    Institutions should avoid including an excessive number of explanatory drivers or
-    drivers with no significant predictive information, using unstructured data if more
-    conventional data is available that provides similar predictive capacities, and overly
-    complex modelling choices if simpler approaches yielding similar results are available.
+    Institutions are recommended to balance model performance and explainability and to
+    avoid unnecessary complexity that is not justified by a significant improvement in
+    predictive capacity. In particular they should avoid including an excessive number of
+    explanatory drivers or drivers with no significant predictive information, using
+    unstructured data when more conventional data with similar predictive capacity is
+    available, and overly complex modelling choices when simpler approaches give similar
+    results.
   key_facts:
-    - fact: "including an excessive number of explanatory drivers"
-      pattern: 'including\s+an\s+excessive\s+number\s+of\s+explanatory\s+drivers'
-    - fact: "using unstructured data"
-      pattern: 'using\s+unstructured\s+data'
-    - fact: "overly complex modelling choices"
-      pattern: 'overly\s+complex\s+modelling\s+choices'
+    - fact: "excessive number of explanatory drivers"
+      pattern: '(excessive\s+number|nombre\s+excessif)'
+    - fact: "unstructured data"
+      pattern: '(unstructured\s+data|données\s+non\s+structurées)'
+    - fact: "simpler approaches"
+      pattern: '(simpler\s+approaches|approches\s+plus\s+simples)'
   source_chunk_ids: [eba_ml_irb_report_en::structure::0031]
   expected: {"work_id": "eba_ml_irb_2023", "sections": ["Annex I– Principle-based recommendations Recommendations regarding the regulatory compliant use of ML techniques in the context of the IRB framework"]}
-  notes: null
+  notes: "rewrite proposed by Claude (5.4-B) - verify against SOURCE"

@@ -219,6 +219,8 @@ def needed_per_work(spec: dict) -> dict[str, int]:
 def check_item(it: dict, draft: dict, chunks: dict, spec: dict) -> tuple[list, list]:
     errors, warnings = [], []
     sid = it["seed_id"]
+    if "verify against SOURCE" in (it.get("notes") or ""):  # 5.4-B: Claude proposed, human verifies
+        errors.append(f"{sid}: not verified yet - check it against SOURCE, then edit the note")
     if it.get("question_language") not in ("auto", "fr", "en"):
         errors.append(f"{sid}: question_language must be auto / fr / en")
     for lang in ("en", "fr"):
