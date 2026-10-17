@@ -34,3 +34,18 @@ def test_ids_are_deterministic():
     assert bm25.token_id("395") == bm25.token_id("395")
     assert point_id("crr_en::structure::0278") == point_id("crr_en::structure::0278")
     assert point_id("crr_en::structure::0278") != point_id("crr_en::fixed::0278")
+
+
+def test_rrf_rewards_agreement_and_is_deterministic():
+    from rag.retrieve import rrf_fuse
+
+    def hits(*ids):
+        return [{"chunk_id": c, "rank": r} for r, c in enumerate(ids, start=1)]
+
+    fused = rrf_fuse({"dense": hits("a", "b", "c"), "bm25": hits("c", "d")}, k=60, top_k=3)
+    assert [h["chunk_id"] for h in fused] == ["c", "a", "b"]  # c is in both lists
+    assert fused[0]["ranks"] == {"dense": 3, "bm25": 1}
+    assert fused[0]["score"] == pytest.approx(1 / 63 + 1 / 61)
+    # b (dense@2) and d (bm25@2) tie on score and best rank -> chunk_id decides; same here:
+    tie = rrf_fuse({"dense": hits("y"), "bm25": hits("x")}, k=60, top_k=2)
+    assert [h["chunk_id"] for h in tie] == ["x", "y"]

@@ -1,4 +1,4 @@
-"""Retrieval over the Qdrant collections: dense (3.4), BM25 (3.5); hybrid follows in 3.6."""
+"""Retrieval over the Qdrant collections: dense (3.4), BM25 (3.5), hybrid = RRF of both (3.6)."""
 
 from __future__ import annotations
 
@@ -59,6 +59,38 @@ def bm25_search(
     return _query(cfg, strategy, sparse, SPARSE, top_k, filters)
 
 
+def rrf_fuse(rankings: dict[str, list[dict]], k: int, top_k: int) -> list[dict]:
+    """Reciprocal Rank Fusion (Cormack et al., 2009): score(d) = sum_r 1 / (k + rank_r(d)).
+
+    Uses ranks only, never raw scores, so cosine (0-1) and BM25 (unbounded) need no scaling.
+    A chunk missing from one list simply gets nothing from it. Ties -> best single rank,
+    then chunk_id, so the order is deterministic. Each hit keeps its per-source ranks.
+    """
+    fused: dict[str, dict] = {}
+    for source, hits in rankings.items():
+        for h in hits:
+            entry = fused.setdefault(h["chunk_id"], {**h, "score": 0.0, "ranks": {}})
+            entry["score"] += 1.0 / (k + h["rank"])
+            entry["ranks"][source] = h["rank"]
+    order = sorted(
+        fused.values(), key=lambda e: (-e["score"], min(e["ranks"].values()), e["chunk_id"])
+    )
+    return [{**e, "rank": r} for r, e in enumerate(order[:top_k], start=1)]
+
+
+def hybrid_search(
+    query: str, cfg: dict, strategy: str, top_k: int, filters: dict | None = None
+) -> list[dict]:
+    """Dense + BM25, each fetching `candidates` hits, fused with RRF."""
+    h = cfg["retrieval"]["hybrid"]
+    n = max(h["candidates"], top_k)
+    rankings = {
+        "dense": dense_search(embed_query(query, cfg), cfg, strategy, n, filters),
+        "bm25": bm25_search(query, cfg, strategy, n, filters),
+    }
+    return rrf_fuse(rankings, h["rrf_k"], top_k)
+
+
 def search(
     query: str,
     cfg: dict,
@@ -67,7 +99,7 @@ def search(
     filters: dict | None = None,
     mode: str | None = None,
 ) -> list[dict]:
-    """Top_k chunks for a query. mode: 'dense' (bge-m3) | 'bm25' (keywords)."""
+    """Top_k chunks for a query. mode: 'dense' (bge-m3) | 'bm25' (keywords) | 'hybrid'."""
     top_k = top_k or cfg["retrieval"]["top_k"]
     strategy = strategy or cfg["chunking"]["strategy"]
     mode = mode or cfg["retrieval"]["mode"]
@@ -75,4 +107,6 @@ def search(
         return dense_search(embed_query(query, cfg), cfg, strategy, top_k, filters)
     if mode == "bm25":
         return bm25_search(query, cfg, strategy, top_k, filters)
+    if mode == "hybrid":
+        return hybrid_search(query, cfg, strategy, top_k, filters)
     raise ValueError(f"unknown retrieval mode {mode!r}")

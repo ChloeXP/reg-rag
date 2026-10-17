@@ -31,7 +31,7 @@ def preview(text: str, n: int = 80) -> str:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--modes", nargs="+", default=["dense", "bm25"])
+    ap.add_argument("--modes", nargs="+", default=["dense", "bm25", "hybrid"])
     ap.add_argument("--show", type=int, default=3, help="result lines printed per run")
     args = ap.parse_args()
 
@@ -51,7 +51,11 @@ def main() -> None:
             for h in hits[: args.show]:
                 mark = "✓" if is_hit(h, q["expected"]) else " "
                 loc = f"{h['doc_id']} art={h['article'] or '-'}"
-                print(f"   {h['rank']} {mark} {h['score']:7.3f} {loc:<30} {preview(h['text'])}")
+                src = " ".join(f"{s[0]}@{r}" for s, r in h.get("ranks", {}).items())
+                print(
+                    f"   {h['rank']} {mark} {h['score']:7.3f} {loc:<30} {src:<9} "
+                    f"{preview(h['text'], 70)}"
+                )
         summary.append(row)
     print(f"\n{'query':<6}{'type':<17}" + "".join(f"{m + '/' + s:<17}" for m, s in runs))
     for row in summary:

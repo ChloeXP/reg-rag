@@ -36,10 +36,13 @@ embedding:
 
 retrieval:
   top_k: 5             # (step 3-4)
-  mode: dense          # dense | bm25   (hybrid in step 3.6)
+  mode: dense          # dense | bm25 | hybrid
   bm25:                # Okapi BM25, classic defaults (Robertson); tuned later on the golden set
     k1: 1.2            # term-frequency saturation: the 3rd occurrence adds little
     b: 0.75            # length normalisation: long chunks are not favoured just for being long
+  hybrid:              # Reciprocal Rank Fusion of dense + bm25 (step 3.6)
+    candidates: 20     # hits fetched from EACH retriever before fusing
+    rrf_k: 60          # RRF constant from Cormack et al. 2009; larger = flatter rank weights
 
 vector_store:
   url: http://localhost:6333
