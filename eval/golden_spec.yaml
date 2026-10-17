@@ -63,3 +63,13 @@ drafting:
   temperature: 0.0       # reproducible drafts (same seed chunk -> same draft)
   prompt: prompts/golden_draft_v2.yaml   # v1 kept: its 2 drafts stay in the file as history
   output: eval/candidates/llm_candidates.jsonl   # appended per seed -> resumable
+
+# 5.4 - human review of the 7b drafts (decision 5.4-C: YAML review sheet + code checks).
+review:
+  sheet: eval/review/factual_review.yaml        # edited by hand, committed (review trail)
+  accepted: eval/review/factual_accepted.jsonl  # written by --apply when every check passes
+  # Question language of the 26 LLM-sourced factual questions (30 factual x 28/60 FR = 14,
+  # minus the 2 French smoke seeds). Cross-lingual: half of the global 10, rest handwritten.
+  languages: {fr: 12, en: 14}
+  min_cross_lingual: 5
+  max_copy_ratio: 0.6   # warning only: share of question words copied from the source
