@@ -1,4 +1,4 @@
-"""Retrieval over the Qdrant collections (step 3.4: dense; BM25 + hybrid follow in 3.5-3.6)."""
+"""Retrieval over the Qdrant collections: dense (3.4), BM25 (3.5); hybrid follows in 3.6."""
 
 from __future__ import annotations
 
@@ -6,8 +6,9 @@ from collections.abc import Sequence
 
 from qdrant_client import models
 
+from rag import bm25
 from rag.embed import embed_query
-from rag.index import collection_name, get_client
+from rag.index import DENSE, SPARSE, collection_name, get_client
 
 HIT_FIELDS = ["chunk_id", "doc_id", "work_id", "language", "kind", "article", "section",
               "page_start", "page_end", "text"]  # fmt: skip
@@ -25,13 +26,11 @@ def _filter(filters: dict | None) -> models.Filter | None:
     )
 
 
-def dense_search(
-    query_vector: Sequence[float], cfg: dict, strategy: str, top_k: int, filters: dict | None = None
-) -> list[dict]:
-    """Nearest chunks to a query vector, best first, as plain dicts (rank, score, payload)."""
+def _query(cfg: dict, strategy: str, query, using: str, top_k: int, filters) -> list[dict]:
     res = get_client(cfg).query_points(
         collection_name(cfg, strategy),
-        query=list(query_vector),
+        query=query,
+        using=using,
         limit=top_k,
         query_filter=_filter(filters),
         with_payload=True,
@@ -42,14 +41,38 @@ def dense_search(
     ]
 
 
+def dense_search(
+    query_vector: Sequence[float], cfg: dict, strategy: str, top_k: int, filters: dict | None = None
+) -> list[dict]:
+    """Nearest chunks to a query vector (cosine), best first."""
+    return _query(cfg, strategy, list(query_vector), DENSE, top_k, filters)
+
+
+def bm25_search(
+    query: str, cfg: dict, strategy: str, top_k: int, filters: dict | None = None
+) -> list[dict]:
+    """Keyword search: BM25 score = sparse(query) . sparse(doc), IDF applied by Qdrant."""
+    indices, values = bm25.query_vector(query)
+    if not indices:  # only stopwords / punctuation
+        return []
+    sparse = models.SparseVector(indices=indices, values=values)
+    return _query(cfg, strategy, sparse, SPARSE, top_k, filters)
+
+
 def search(
     query: str,
     cfg: dict,
     top_k: int | None = None,
     strategy: str | None = None,
     filters: dict | None = None,
+    mode: str | None = None,
 ) -> list[dict]:
-    """Semantic search: embed the query with bge-m3, return the top_k closest chunks."""
+    """Top_k chunks for a query. mode: 'dense' (bge-m3) | 'bm25' (keywords)."""
     top_k = top_k or cfg["retrieval"]["top_k"]
     strategy = strategy or cfg["chunking"]["strategy"]
-    return dense_search(embed_query(query, cfg), cfg, strategy, top_k, filters)
+    mode = mode or cfg["retrieval"]["mode"]
+    if mode == "dense":
+        return dense_search(embed_query(query, cfg), cfg, strategy, top_k, filters)
+    if mode == "bm25":
+        return bm25_search(query, cfg, strategy, top_k, filters)
+    raise ValueError(f"unknown retrieval mode {mode!r}")

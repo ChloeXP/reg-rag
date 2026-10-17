@@ -36,6 +36,10 @@ embedding:
 
 retrieval:
   top_k: 5             # (step 3-4)
+  mode: dense          # dense | bm25   (hybrid in step 3.6)
+  bm25:                # Okapi BM25, classic defaults (Robertson); tuned later on the golden set
+    k1: 1.2            # term-frequency saturation: the 3rd occurrence adds little
+    b: 0.75            # length normalisation: long chunks are not favoured just for being long
 
 vector_store:
   url: http://localhost:6333

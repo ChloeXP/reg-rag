@@ -1,11 +1,11 @@
-"""Step 3.4 - run the 5 smoke queries on both chunking strategies and mark the hits.
+"""Steps 3.4-3.6 - run the 5 smoke queries per retrieval mode x chunking strategy, mark hits.
 
-Run: uv run python scripts/try_search.py   (needs Qdrant up + rag.index done)
+Run: uv run python scripts/try_search.py [--modes dense bm25] [--show 3]
 """
 
 from __future__ import annotations
 
-import time
+import argparse
 
 import yaml
 
@@ -25,33 +25,37 @@ def is_hit(hit: dict, exp: dict) -> bool:
     return any(m in hit["text"] for m in exp.get("markers", []))
 
 
-def preview(text: str, n: int = 90) -> str:
+def preview(text: str, n: int = 80) -> str:
     return " ".join(text.split())[:n]
 
 
 def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--modes", nargs="+", default=["dense", "bm25"])
+    ap.add_argument("--show", type=int, default=3, help="result lines printed per run")
+    args = ap.parse_args()
+
     cfg = load_config()
     queries = yaml.safe_load(open(PROJECT_ROOT / "eval" / "smoke_queries.yaml", encoding="utf-8"))
     top_k = cfg["retrieval"]["top_k"]
+    runs = [(m, s) for m in args.modes for s in STRATEGIES]
     summary = []
     for q in queries:
         print(f"\n=== {q['id']} [{q['type']}] {q['query']}")
         row = [q["id"], q["type"]]
-        for strategy in STRATEGIES:
-            t0 = time.perf_counter()
-            hits = search(q["query"], cfg, top_k=top_k, strategy=strategy)
+        for mode, strategy in runs:
+            hits = search(q["query"], cfg, top_k=top_k, strategy=strategy, mode=mode)
             ranks = [h["rank"] for h in hits if is_hit(h, q["expected"])]
-            first = ranks[0] if ranks else None
-            row.append(f"@{first}" if first else "miss")
-            print(f"  -- {strategy}: first hit {row[-1]} ({time.perf_counter() - t0:.1f}s)")
-            for h in hits:
+            row.append(f"@{ranks[0]}" if ranks else "miss")
+            print(f"  -- {mode}/{strategy}: first hit {row[-1]}")
+            for h in hits[: args.show]:
                 mark = "✓" if is_hit(h, q["expected"]) else " "
                 loc = f"{h['doc_id']} art={h['article'] or '-'}"
-                print(f"   {h['rank']} {mark} {h['score']:.3f} {loc:<32} {preview(h['text'])}")
+                print(f"   {h['rank']} {mark} {h['score']:7.3f} {loc:<30} {preview(h['text'])}")
         summary.append(row)
-    print(f"\n{'query':<6}{'type':<17}" + "".join(f"{s:<11}" for s in STRATEGIES))
+    print(f"\n{'query':<6}{'type':<17}" + "".join(f"{m + '/' + s:<17}" for m, s in runs))
     for row in summary:
-        print(f"{row[0]:<6}{row[1]:<17}" + "".join(f"{c:<11}" for c in row[2:]))
+        print(f"{row[0]:<6}{row[1]:<17}" + "".join(f"{c:<17}" for c in row[2:]))
 
 
 if __name__ == "__main__":
