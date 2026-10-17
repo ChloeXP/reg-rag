@@ -49,3 +49,31 @@ def test_rrf_rewards_agreement_and_is_deterministic():
     # b (dense@2) and d (bm25@2) tie on score and best rank -> chunk_id decides; same here:
     tie = rrf_fuse({"dense": hits("y"), "bm25": hits("x")}, k=60, top_k=2)
     assert [h["chunk_id"] for h in tie] == ["x", "y"]
+
+
+def test_embed_cache_reuses_and_invalidates(tmp_path):  # decision #44, no model needed
+    import copy
+
+    import numpy as np
+
+    from rag.config import load_config
+    from rag.embed import embed_chunks
+
+    calls = []
+
+    def fake(texts):
+        calls.append(len(texts))
+        return np.ones((len(texts), 4), dtype=np.float32) / 2
+
+    cfg = copy.deepcopy(load_config())
+    cfg["paths"]["embeddings_dir"] = str(tmp_path)  # absolute path -> isolated cache
+    ids, texts = ["a", "b", "c"], ["x", "y", "z"]
+    embed_chunks(ids, texts, cfg, fake)
+    _, stats = embed_chunks(ids, texts, cfg, fake)
+    assert stats == {"encoded": 0, "reused": 3, "dropped": 0}
+    _, stats = embed_chunks(ids[:2], ["x", "y edited"], cfg, fake)
+    assert stats == {"encoded": 1, "reused": 1, "dropped": 2}
+    cfg["embedding"]["normalize"] = not cfg["embedding"]["normalize"]
+    _, stats = embed_chunks(ids[:1], ["x"], cfg, fake)
+    assert stats["encoded"] == 1  # encoder signature changed -> cache ignored
+    assert calls == [3, 1, 1]

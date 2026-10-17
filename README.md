@@ -4,7 +4,7 @@ Bilingual (FR/EN) question-answering over public EU banking regulation
 (EU AI Act, CRR, EBA guidelines, ACPR publications), running **fully locally**
 with open-source tools, and evaluated systematically (RAGAS, DeepEval, MLflow).
 
-> Status: 🚧 Step 2 / 12 — corpus parsed and chunked (2 strategies), 30 tests green.
+> Status: 🚧 Step 3 / 12 — chunks embedded (bge-m3) in Qdrant; dense, BM25 and hybrid search; 47 tests green (+3 documented xfail).
 
 ## Stack
 
@@ -46,7 +46,14 @@ uv run python -m rag.download
 
 # 6. Parse + chunk everything -> data/processed/chunks.parquet, then run the tests
 uv run python -m rag.ingest
-uv run pytest -q          # 10 unit tests + 20 data-quality tests
+
+# 7. Embed (bge-m3, ~18 min the first time on an M1, then cached) and load Qdrant
+uv run python -m rag.embed
+uv run python -m rag.index            # add --recreate after a schema change
+uv run python scripts/try_search.py   # 5 smoke queries x {dense, bm25, hybrid} x 2 strategies
+
+# 8. Tests: unit (no data) + data-quality (corpus) + integration (Qdrant running)
+uv run pytest -q
 ```
 
 - Qdrant dashboard: http://localhost:6333/dashboard
@@ -79,3 +86,42 @@ Raw file → **Blocks** (one parser per format: PDF via PyMuPDF, CRR via its XHT
   header such as `[CRR · Article 92 Own funds requirements]`.
 - Known limits: 107 CRR formulas are images (dropped); 8 EBA footnotes missed (97.7 % recall);
   French needs ~27 % more tokens than English for the same AI Act text.
+- CRR Annex IV (correlation table: old directive article → CRR article) is excluded via
+  `skip_sections` in `data/sources.yaml`: no regulatory content, and it captured
+  article-number queries in step 3.
+
+## Embeddings and retrieval (step 3)
+
+- **Embedding**: `BAAI/bge-m3` (multilingual, 1024-d, normalised) via sentence-transformers on
+  Apple MPS (benchmarked: 4.1 vs 2.5 chunks/s on CPU, identical vectors; batch size 8–32
+  made no difference). Vectors are cached in `data/processed/embeddings/bge-m3.parquet`,
+  keyed by `(chunk_id, sha256(text))` with the encoder signature in the file metadata:
+  only changed chunks are re-encoded.
+- **Qdrant**: one collection per model × strategy (`bge-m3__fixed`, `bge-m3__structure`),
+  each point with two named vectors — `dense` (cosine) and `bm25` (sparse) — and all chunk
+  metadata as payload. Point id = `uuid5(chunk_id)`; indexing upserts and deletes stale
+  points, so re-runs are idempotent and the collection mirrors the parquet.
+- **BM25** as sparse vectors: own tokenizer (lowercase, accents stripped, numbers kept,
+  small FR+EN stopword list) and tf/length normalisation (k1 = 1.2, b = 0.75);
+  IDF computed server-side by Qdrant (`Modifier.IDF`).
+- **Hybrid**: hand-written Reciprocal Rank Fusion (k = 60, 20 candidates per retriever).
+- `search(query, cfg, top_k, strategy, filters, mode)` in `src/rag/retrieve.py`;
+  `mode` = `dense` (default) | `bm25` | `hybrid`.
+
+Smoke test (5 queries written *before* looking at results, `eval/smoke_queries.yaml`),
+rank of the first correct chunk in the top 5 (`structure` strategy):
+
+| Query | Type | dense | bm25 | hybrid |
+|---|---|---|---|---|
+| Q1 DORA Art. 19 | FR → FR | 1 | 4 | 1 |
+| Q2 EBA outsourcing register | EN → EN | 1 | 1 | 1 |
+| Q3 CRR Art. 92 | FR → EN (cross-lingual) | 1 | – | 3 |
+| Q4 "CRR Article 395" | article number only | 5 | 3 | – |
+| Q5 AI Act high-risk (Art. 6 / Annex III) | no-RAG baseline question | 1 | – | 5 |
+
+Takeaways: dense handles paraphrase and cross-lingual queries; BM25 handles rare exact
+tokens (with `fixed` chunks it ranks Art. 395 first) but cannot cross languages;
+**naive RRF is not a free win** — a chunk found by only one retriever is diluted, and an
+article split into several chunks splits its votes. Five hand-picked edge cases are not an
+evaluation: weighted RRF, article-level fusion and article-number filtering will be compared
+on the golden set in step 6. Default mode therefore stays `dense`.

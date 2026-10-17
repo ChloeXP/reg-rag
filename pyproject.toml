@@ -40,4 +40,7 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 filterwarnings = ["ignore:builtin type .* has no __module__ attribute:DeprecationWarning"]
-markers = ["data: needs the downloaded corpus + data/processed/chunks.parquet (skipped otherwise)"]
+markers = [
+    "data: needs the downloaded corpus + data/processed/chunks.parquet (skipped otherwise)",
+    "qdrant: needs Qdrant running with the indexed collections (skipped otherwise)",
+]
