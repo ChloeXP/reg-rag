@@ -15,6 +15,20 @@ PLACEHOLDERS = {"context", "question", "answer_language"}
 HEADER = re.compile(r"^\[([^\[\]\n]+)\]\s*")
 MAX_LABEL = 120  # some headers carry a whole title page (ACPR: 317 chars)
 
+# Language detection (decision 4.3b-B): the corpus and the questions are FR or EN only.
+LANGUAGES = {"fr": "French", "en": "English"}
+WORD = re.compile(r"[^\W\d_]+")  # letters only; apostrophes split "l'article" -> l, article
+FR_ACCENTS = set("éèêëàâçùûüôîïœ")
+FR_WORDS = frozenset(
+    """le la les l de des du d un une et est sont que qu qui quel quelle quels quelles quoi
+    comment pourquoi dans pour sur par au aux ce cette ces il ils elle doit doivent selon
+    entre avec sans peut leur leurs""".split()
+)
+EN_WORDS = frozenset(
+    """the of and to in is are what which who how does do must shall should be for with
+    under by an this that these when where why can their its""".split()
+)
+
 
 def _fields(template: str) -> set[str]:
     return {f for _, f, _, _ in string.Formatter().parse(template) if f is not None}
@@ -87,3 +101,28 @@ def format_context(hits: list[dict]) -> str:
         label, body = split_passage(hit)
         blocks.append(f"[{n}] {label}\n{body}")
     return "\n\n".join(blocks)
+
+
+def detect_language(question: str, default: str) -> str:
+    """'fr' | 'en' by counting function words (+1 for FR if any French accent).
+
+    No signal or a tie -> `default` (config generation.default_language).
+    """
+    q = question.lower()
+    words = WORD.findall(q)
+    fr = sum(w in FR_WORDS for w in words) + (1 if FR_ACCENTS & set(q) else 0)
+    en = sum(w in EN_WORDS for w in words)
+    if fr == en:
+        return default
+    return "fr" if fr > en else "en"
+
+
+def build_prompt(question: str, hits: list[dict], prompt: dict, cfg: dict, lang: str | None = None):
+    """-> {system, user, language}. `lang` overrides detection (CLI --lang)."""
+    lang = lang or detect_language(question, cfg["generation"]["default_language"])
+    if lang not in LANGUAGES:
+        raise ValueError(f"unsupported language {lang!r}, expected one of {sorted(LANGUAGES)}")
+    user = prompt["user"].format(
+        context=format_context(hits), question=question.strip(), answer_language=LANGUAGES[lang]
+    )
+    return {"system": prompt["system"], "user": user, "language": lang}

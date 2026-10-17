@@ -21,6 +21,9 @@ llm:
   timeout_s: 180
   prompt_version: v1                 # prompts/<version>.yaml (step 4.2); logged with every answer
 
+generation:            # step 4
+  default_language: en # used when the question has no FR/EN signal (e.g. "CRR Article 395")
+
 # Filled in later steps:
 chunking:
   strategy: structure  # fixed | structure (step 2). Also = which collection search() queries.
