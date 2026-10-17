@@ -1,0 +1,41 @@
+# Step 3.4 - five hand-written smoke queries, expected locations fixed BEFORE looking at results.
+# Verified against chunks.parquet (2026-10-17). Seeds for the step-5 golden set.
+# A hit = same work_id AND (article in `articles` OR section starts with one of `sections`
+#         OR text contains one of `markers` - heading lines, also catches fixed chunks).
+- id: Q1
+  type: fr_to_fr
+  query: "Quelles sont les obligations de notification des incidents majeurs liés aux TIC ?"
+  expected:
+    work_id: dora
+    articles: ["19"]
+    markers: ["Article 19 Déclaration des incidents majeurs"]
+- id: Q2
+  type: en_to_en
+  query: "What information must institutions keep in the register of outsourcing arrangements?"
+  expected:
+    work_id: eba_gl_2019_02
+    sections: ["4. Guidelines on outsourcing > Title III – Governance framework > 11 Documentation"]
+    markers: ["11 Documentation requirements"]
+- id: Q3
+  type: cross_fr_to_en
+  query: "Quels ratios minimaux de fonds propres les établissements doivent-ils respecter ?"
+  expected:
+    work_id: crr
+    articles: ["92"]
+    markers: ["Article 92 Own funds requirements"]
+- id: Q4
+  type: article_number
+  query: "What does CRR Article 395 say?"
+  expected:
+    work_id: crr
+    articles: ["395"]
+    markers: ["Article 395 Limits to large exposures"]
+- id: Q5
+  type: no_rag_baseline
+  query: "Which article of the AI Act defines high-risk AI systems?"
+  expected:
+    work_id: ai_act
+    articles: ["6"]
+    sections: ["ANNEX III ", "ANNEXE III "]
+    markers: ["Article 6 Classification rules", "Article 6 Règles relatives à la classification",
+              "ANNEX III High-risk", "ANNEXE III Systèmes"]
