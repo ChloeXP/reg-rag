@@ -39,6 +39,8 @@ retrieval:
 
 vector_store:
   url: http://localhost:6333
+  distance: cosine     # vectors are unit-length -> same ranking as dot; robust if normalize=false
+  upsert_batch: 256    # points per upsert request
 
 mlflow:
   tracking_uri: http://localhost:5001
