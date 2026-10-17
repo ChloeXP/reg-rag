@@ -12,6 +12,7 @@ paths:
   embeddings_dir: data/processed/embeddings   # vector cache, one parquet per model (step 3.2)
   manifest: data/manifest.csv
   prompts_dir: prompts
+  runs_dir: runs                              # rag.ask appends runs/ask_log.jsonl (gitignored)
 
 llm:
   base_url: http://localhost:11434   # Ollama runs natively on macOS (Metal GPU)

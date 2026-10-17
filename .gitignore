@@ -23,3 +23,6 @@ data/processed/*
 # Local service state (Qdrant vectors, MLflow db/artifacts)
 storage/
 mlruns/
+
+# Run logs (step 4.5): one JSON line per question; key results go to notes/ instead
+runs/
