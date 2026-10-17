@@ -92,3 +92,8 @@ def test_one_footnote_per_number(pdf):  # P15 / P16: a continuation line is not 
     notes = [Footnote(b.page, b.text) for b in blocks if b.kind == "footnote"]
     n_found, _, _ = footnote_numbering_gaps(notes)
     assert len(notes) == n_found
+
+
+def test_crr_correlation_table_excluded():  # P33: declared out of scope in sources.yaml
+    crr = [r for r in rows() if r["doc_id"] == "crr_en"]
+    assert crr and not any((r["section"] or "").startswith("ANNEX IV") for r in crr)

@@ -48,6 +48,8 @@ sources:
     method: cellar        # EUR-Lex website blocks scripts (HTTP 202 challenge)
     celex: "32013R0575"
     format: xhtml         # CELLAR has no PDF manifestation for this 2013 act (HTTP 404)
+    skip_sections: ["anx_IV"]   # XHTML element ids (ELI markup): the counterpart of skip_pages
+    skip_reason: "Annex IV correlation table (old directive article -> CRR article): no regulatory content; it captured article-number queries in step 3.4"
     url: "https://eur-lex.europa.eu/legal-content/EN/TXT/PDF/?uri=CELEX:32013R0575"
     notes: "Original 2013 text, NOT the consolidated version. Amended since by CRR2 (2019/876) and CRR3 (2024/1623)."
 

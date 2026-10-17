@@ -10,6 +10,7 @@ from rag.parse_pdf import (
     join_lines,
     parse_page_ranges,
 )
+from rag.parse_xhtml import parse_xhtml
 from rag.schema import Block, Chunk, make_chunk_id
 from rag.structure import Para, eu_regulation_structure, size_hierarchy_structure
 
@@ -104,3 +105,24 @@ def test_size_hierarchy_structure():
         Para("64. Institutions should assess...", False, 11),
     ]
     assert size_hierarchy_structure(paras)[-1][2] == "4. Guidelines > 12.2 Risk assessment"
+
+
+# ---- corpus scope for XHTML (3.4 / P33) ----
+
+XHTML = (
+    '<html xmlns="http://www.w3.org/1999/xhtml"><body>'
+    '<div id="art_1"><p>Institutions shall hold own funds.</p></div>'
+    '<div id="anx_IV"><p>Article 1 | Article 2</p></div>'
+    "</body></html>"
+)
+
+
+def test_xhtml_skip_sections(tmp_path):
+    path = tmp_path / "doc.xhtml"
+    path.write_text(XHTML, encoding="utf-8")
+    blocks, stats = parse_xhtml(path, {"anx_IV"})
+    assert [b.text for b in blocks] == ["Institutions shall hold own funds."]
+    assert stats["skipped_sections"] == ["anx_IV"]
+    assert len(parse_xhtml(path)[0]) == 2  # nothing skipped by default
+    with pytest.raises(ValueError, match="anx_IX"):  # a typo must fail loudly
+        parse_xhtml(path, {"anx_IX"})

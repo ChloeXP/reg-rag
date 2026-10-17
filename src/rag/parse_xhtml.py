@@ -9,6 +9,8 @@ Unlike PDF, the XHTML already carries the legal structure in its markup:
   <table class="oj-table">          a real data table
   <p class="oj-note">               a footnote
 So there is no header/footer cleaning and no guessing: we read structure, we do not infer it.
+Corpus scope: element ids listed in sources.yaml `skip_sections` (e.g. "anx_IV") are skipped,
+the XHTML counterpart of `skip_pages` for PDFs (decision #34).
 
 Debug run: uv run python -m rag.parse_xhtml
 """
@@ -43,12 +45,13 @@ def text_of(el: etree._Element) -> str:
 
 
 class XhtmlParser:
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, skip_ids: set[str] | None = None):
         parser = etree.XMLParser(huge_tree=True, resolve_entities=False, no_network=True)
         self.root = etree.parse(str(path), parser).getroot()
         self.doc_id = path.stem
         self.blocks: list[Block] = []
-        self.stats = {"tables": 0}
+        self.stats: dict = {"tables": 0, "skipped_sections": []}
+        self.skip_ids = set(skip_ids or ())
         # Cache key = the element's id ATTRIBUTE. Never Python's id(el): lxml creates element
         # proxies on the fly, so id() values get reused and the cache returns wrong headings.
         self._heading_cache: dict[str, str] = {}
@@ -111,6 +114,9 @@ class XhtmlParser:
     def walk(self, el: etree._Element, prefix: str = "") -> None:
         for child in el:
             name, cls = tag(child), classes(child)
+            if child.get("id") in self.skip_ids:  # declared out of scope in sources.yaml
+                self.stats["skipped_sections"].append(child.get("id"))
+                continue
             if name in {"figure", "img"}:
                 continue  # formulas are JPEG images without text (counted in parse())
             elif name == "table" and "oj-hd-date" not in etree.tostring(child, encoding=str):
@@ -170,6 +176,9 @@ class XhtmlParser:
     def parse(self) -> tuple[list[Block], dict]:
         body = self.root.find(f"{NS}body")
         self.walk(body)
+        missing = self.skip_ids - set(self.stats["skipped_sections"])
+        if missing:  # a typo or a new file version must fail loudly, not keep the noise
+            raise ValueError(f"{self.doc_id}: skip_sections not found: {sorted(missing)}")
         self.stats["formulas_dropped"] = sum(1 for _ in body.iter(f"{NS}img"))
         self.stats["blocks"] = len(self.blocks)
         self.stats["articles"] = len({b.article for b in self.blocks if b.article})
@@ -177,8 +186,8 @@ class XhtmlParser:
         return self.blocks, self.stats
 
 
-def parse_xhtml(path: Path) -> tuple[list[Block], dict]:
-    return XhtmlParser(path).parse()
+def parse_xhtml(path: Path, skip_ids: set[str] | None = None) -> tuple[list[Block], dict]:
+    return XhtmlParser(path, skip_ids).parse()
 
 
 def main() -> None:

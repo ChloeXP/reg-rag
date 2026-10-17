@@ -22,7 +22,7 @@ from pathlib import Path
 from tokenizers import Tokenizer
 
 from rag.config import PROJECT_ROOT, load_config
-from rag.parse_pdf import parse_pdf
+from rag.parse_pdf import load_sources, parse_pdf
 from rag.parse_xhtml import parse_xhtml
 from rag.schema import Block, Chunk, make_chunk_id
 
@@ -53,7 +53,8 @@ def load_blocks(path: Path, cfg: dict) -> list[Block]:
     if path.suffix == ".pdf":
         return parse_pdf(path, cfg)[0]
     if path.suffix == ".xhtml":
-        return parse_xhtml(path)[0]
+        skip = load_sources(cfg).get(path.stem, {}).get("skip_sections") or []
+        return parse_xhtml(path, set(skip))[0]
     raise ValueError(f"no parser for {path.name}")
 
 
