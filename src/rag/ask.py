@@ -74,6 +74,9 @@ def ask(question: str, cfg: dict, lang: str | None = None) -> dict:
         **checks,
         "retrieve_s": retrieve_s,
         "llm_s": out["latency_s"],
+        "load_s": out["load_s"],
+        "prefill_s": out["prefill_s"],
+        "decode_s": out["decode_s"],
         "prompt_tokens": out["prompt_tokens"],
         "output_tokens": out["output_tokens"],
     }
@@ -102,7 +105,9 @@ def show(rec: dict) -> None:
         f"\n{c['model']} | {c['strategy']}/{c['mode']} top-{c['top_k']}"
         f" | prompt {c['prompt_version']}"
         f" | lang {rec['language']} | refusal {rec['is_refusal']} | retrieve {rec['retrieve_s']}s"
-        f" | llm {rec['llm_s']}s | tokens in={rec['prompt_tokens']} out={rec['output_tokens']}"
+        f" | llm {rec['llm_s']}s (load {rec['load_s']} + prefill {rec['prefill_s']}"
+        f" + decode {rec['decode_s']})"
+        f" | tokens in={rec['prompt_tokens']} out={rec['output_tokens']}"
     )
 
 
