@@ -22,7 +22,10 @@ llm:
 
 # Filled in later steps:
 chunking:
-  strategy: fixed      # fixed | structure   (step 2)
+  strategy: structure  # fixed | structure (step 2). Also = which collection search() queries.
+                       # Baseline (step 4): structure, chosen on 5 smoke queries only;
+                       # fixed vs structure is re-tested on the golden set (step 6).
+                       # TODO before step 6: split into retrieval.strategy (decision 4.1-C).
   tokenizer: BAAI/bge-m3   # count tokens with the embedding model's own tokenizer
   chunk_size: 512      # tokens
   chunk_overlap: 64    # tokens shared by two consecutive fixed chunks
@@ -35,7 +38,7 @@ embedding:
   normalize: true      # unit vectors: cosine == dot product
 
 retrieval:
-  top_k: 5             # (step 3-4)
+  top_k: 5             # baseline: 5 x ~310 tokens (structure) ~ 1.6k ctx tokens << num_ctx 8192
   mode: dense          # dense | bm25 | hybrid
   bm25:                # Okapi BM25, classic defaults (Robertson); tuned later on the golden set
     k1: 1.2            # term-frequency saturation: the 3rd occurrence adds little
