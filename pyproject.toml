@@ -43,4 +43,5 @@ filterwarnings = ["ignore:builtin type .* has no __module__ attribute:Deprecatio
 markers = [
     "data: needs the downloaded corpus + data/processed/chunks.parquet (skipped otherwise)",
     "qdrant: needs Qdrant running with the indexed collections (skipped otherwise)",
+    "ollama: needs Ollama + Qdrant running; calls the LLM (~45 s, skipped otherwise)",
 ]
