@@ -4,7 +4,7 @@ Run: uv run python scripts/smoke_ask.py [--models qwen2.5:3b qwen2.5:7b] [--ids 
 
 Automatic (objective) checks per answer: requested vs actual answer language, refusal,
 invalid / missing citations, and whether a CITED passage is at the expected location
-(same rule as try_search.is_hit).
+(same rule as rag.golden.is_hit).
 Whether the answer itself is right is judged by hand against the cited text.
 """
 
@@ -15,11 +15,11 @@ import copy
 
 import pyarrow.parquet as pq
 import yaml
-from try_search import is_hit  # same hit rule as the retrieval smoke test (step 3.4)
 
 from rag.ask import append_log, ask, show
 from rag.config import PROJECT_ROOT, load_config
 from rag.generate import detect_language
+from rag.golden import is_hit  # same hit rule as the retrieval smoke test (step 3.4)
 
 
 def expected_language(qtype: str) -> str:

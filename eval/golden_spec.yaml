@@ -1,0 +1,57 @@
+# Step 5.1 - blueprint of the golden set (the "exam blueprint"), fixed BEFORE writing questions.
+# Read by src/rag/golden.py: sampling (5.2), and validation of eval/golden_set.jsonl (5.6).
+version: 1
+date: 2026-10-17
+seed: 42                 # stratified sampling of seed chunks + dev/test assignment
+total: 60
+splits: {dev: 40, test: 20}   # decision 5.0-B: tune on dev only; test run once at the end
+
+# expected_behavior: answer = grounded answer with [n] citations; refuse = the fixed refusal
+# sentence from prompts/<version>.yaml; resist = refuse the injected instruction, stay in role.
+types:
+  factual:        {dev: 20, test: 10, behavior: answer}  # one location; LLM draft + human review
+  multi_hop:      {dev: 8, test: 4, behavior: answer}    # 2-3 locations, may span works
+  article_lookup: {dev: 3, test: 1, behavior: answer}    # only an article number (like Q4)
+  no_answer:      {dev: 6, test: 3, behavior: refuse}    # 15 %: not in the corpus
+  adversarial:    {dev: 3, test: 2, behavior: resist}    # prompt injection
+
+# Question language over all 60 questions. Cross-lingual = the question language is not
+# available for the answer's work (e.g. FR question on CRR, EN-only).
+languages: {fr: 28, en: 32}
+min_cross_lingual: 10
+
+# Answerable questions (factual + multi_hop + article_lookup = 46) by PRIMARY work.
+# Decision 5.1-C: floor of 2 per work, CRR capped at ~20 %, NOT proportional to chunk counts:
+# small PDFs carry their own risks (section-only locations, numbered paragraphs - P38).
+works:
+# factual = how many of the n are factual (sum = 30); the rest are multi_hop / article_lookup.
+  ai_act:          {n: 10, factual: 6, min_kind: {recital: 1, annex: 2}}
+  crr:             {n: 9, factual: 5}
+  dora:            {n: 7, factual: 4, min_kind: {recital: 1}}
+  acpr_ia_2020:    {n: 5, factual: 4}
+  eba_gl_2019_02:  {n: 4, factual: 3}
+  eba_gl_2019_04:  {n: 3, factual: 2}
+  eba_gl_2020_06:  {n: 3, factual: 2}
+  eba_gl_2021_05:  {n: 3, factual: 2}
+  eba_ml_irb_2023: {n: 2, factual: 2}
+
+# The 5 step-3 smoke queries are merged as seeds. All go to dev: their baseline answers have
+# already been inspected, so they are no longer unseen (test must stay unseen).
+smoke_seeds:
+  file: eval/smoke_queries.yaml
+  split: dev
+  types: {Q1: factual, Q2: factual, Q3: factual, Q4: article_lookup, Q5: factual}
+
+# 5.2 - seed chunks for the 7b drafts (factual questions only).
+# seeds per work = ceil((factual - smoke factual) x oversample): spare drafts for rejections.
+sampling:
+  oversample: 1.5
+  min_tokens: 120        # shorter structure chunks rarely hold a self-contained fact
+  # body chunks in these sections are front/back matter, not regulatory content
+  exclude_sections: '(?i)^(background|.*executive summary|.*compliance and reporting|.*implementation date|bibliographie|remerciements)'
+  exclude_kinds: [table]
+  # context-header lines of chunks that only amend other acts, repeal old guidelines, or list
+  # other legislation (AI Act Annex I / X): no self-contained fact to ask about.
+  # Entry-into-force / application dates are kept: a classic user question.
+  exclude_headings: '(?i)(amendments? to (regulation|directive)|modifications? d[ue]s? (règlement|directive)|> repeal\]|^\[AI ACT · ANNEXE? (I|X)\b)'
+  output: eval/candidates/seeds.jsonl

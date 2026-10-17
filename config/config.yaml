@@ -57,6 +57,10 @@ vector_store:
   distance: cosine     # vectors are unit-length -> same ranking as dot; robust if normalize=false
   upsert_batch: 256    # points per upsert request
 
+eval:                  # step 5
+  golden_spec: eval/golden_spec.yaml   # blueprint: quotas per type / split / language / work
+  golden_set: eval/golden_set.jsonl    # the questions themselves (5.4-5.5)
+
 mlflow:
   tracking_uri: http://localhost:5001
   experiment: reg-rag

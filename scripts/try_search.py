@@ -10,19 +10,10 @@ import argparse
 import yaml
 
 from rag.config import PROJECT_ROOT, load_config
+from rag.golden import is_hit  # moved here in step 5.2 (shared hit rule)
 from rag.retrieve import search
 
 STRATEGIES = ["structure", "fixed"]
-
-
-def is_hit(hit: dict, exp: dict) -> bool:
-    if hit["work_id"] != exp["work_id"]:
-        return False
-    if hit["article"] in exp.get("articles", []):
-        return True
-    if any((hit["section"] or "").startswith(s) for s in exp.get("sections", [])):
-        return True
-    return any(m in hit["text"] for m in exp.get("markers", []))
 
 
 def preview(text: str, n: int = 80) -> str:
