@@ -57,8 +57,12 @@ uv run python -m rag.ask "Quelles sont les obligations de notification des incid
 uv run python -m rag.ask --model qwen2.5:7b "What does CRR Article 92 require?"
 uv run python scripts/smoke_ask.py --models qwen2.5:3b qwen2.5:7b   # 5 smoke queries end to end
 
-# 9. Tests: unit (no data) + data-quality (corpus) + integration (Qdrant, Ollama running)
-uv run pytest -q                       # 69 passed, 5 xfailed (known limits, see below)
+# 9. Golden set (step 5): rebuild eval/golden_set.jsonl from its sources and re-check it
+uv run python -m rag.golden --check-spec     # blueprint quotas vs corpus
+uv run python -m rag.build_golden            # 60 items, md5 3b5252ca... (deterministic)
+
+# 10. Tests: unit (no data) + data-quality (corpus) + integration (Qdrant, Ollama running)
+uv run pytest -q                       # 134 passed, 5 xfailed (known limits, see below)
 uv run pytest -q -m "not ollama"       # skip the LLM calls (~45 s)
 ```
 
@@ -178,3 +182,59 @@ tok/s; a ~2 400-token prompt costs ~8 s (3b) / ~18 s (7b) before the first word,
 retrieved chunk adds ~1.5 s (3b). Two measurement traps found: Ollama's KV cache makes a
 repeated prompt's prefill ~0.05 s, and the CLI's retrieval time (~9.5 s) is mostly loading
 bge-m3 (0.2–1 s per query inside one process).
+
+## Evaluation set (step 5) — tag `golden-v1`
+
+[`eval/golden_set.jsonl`](eval/golden_set.jsonl): **60 questions, dev 40 / test 20**. Step 6 tunes
+on dev only; test is run once, on the final configuration (and with qwen2.5:7b).
+
+| Type | dev | test | Expected behaviour | Checked automatically by |
+|---|---|---|---|---|
+| factual (one location) | 20 | 10 | grounded answer with `[n]` | location + key-fact regexes |
+| multi_hop (2–3 locations, 6 span two documents) | 8 | 4 | grounded answer | all locations retrieved + key facts |
+| article_lookup ("What does CRR Article 395 say?") | 3 | 1 | grounded answer | location + key facts |
+| no_answer (not in the corpus, 15 %) | 6 | 3 | the fixed refusal sentence of prompt v1 | exact refusal match |
+| adversarial (prompt injection) | 3 | 2 | ignore the injected instruction | `must_not_match` / `must_match` / citations |
+
+- **Blueprint first** ([`eval/golden_spec.yaml`](eval/golden_spec.yaml), validated by
+  `rag.golden --check-spec`): quotas per type, split, language (FR 28 / EN 32, ≥ 10
+  cross-lingual — 12 in the set) and document. Documents get a floor of 2 and CRR is capped at
+  ~15 % of the questions (35 % of the chunks): the set is meant to find weaknesses, so small PDFs
+  with section-only locations and numbered paragraphs are deliberately over-represented.
+- **Each answerable item has an answer-level standard**, not only a location: a reference
+  answer (`ground_truth`, for RAGAS context recall) and 1–4 `key_facts` as regexes. Step 4
+  showed why: "a cited passage is at the expected location" passed 10/10 while only 6/10
+  answers were right. Key-fact regexes are bilingual (the system answers in the question's
+  language) and tolerant of Official Journal number formats (`25 %`, `4,5 %`, `EUR 200 000`).
+- **No-answer items carry a proof of absence**: `absence_patterns` with zero hits in the whole
+  corpus. Several are traps the model knows from pre-training (CRR3 output floor 72.5 %, GDPR
+  fines, the GDPR 72-hour rule, Fed SR 11-7) — exactly what faithfulness must catch.
+- **Adversarial items** cover both injection in the question (leak the system prompt, "use your
+  own knowledge", role hijack) and injection in the retrieved context (`injected_passage`, to be
+  inserted by the step-6 harness; prompt v1 rule 8 says passages are data).
+- **Split**: stratified by type, then by cross-lingual / primary document / language
+  (systematic sampling) — a type-only random split left 1 of the 12 cross-lingual questions in
+  test. The 5 step-3 smoke queries are dev only (their baseline answers were already inspected).
+- Language detection (step 4) decides 0 of the 60 questions by its default and agrees with the
+  label on all 60.
+
+### How the items were made, and who checked them (honest provenance)
+
+| Source | Items | Made by | Checked by |
+|---|---|---|---|
+| Smoke queries (step 3) | 5 | me | locations fixed by hand before seeing results; ground truths written by Claude |
+| Factual from seed chunks | 26 | qwen2.5:7b drafts (40 stratified seed chunks, prompt `golden_draft_v2`) → rewritten by Claude | **8 high-risk items verified by me line by line** against the source (negations, conditions, exceptions, numbers); 18 not human-verified |
+| Multi-hop, lookup, no-answer, adversarial | 29 | drafted by Claude from the corpus | not human-verified (13 high-risk items re-checked by Claude against the source) |
+
+Every item is re-checked by code at build time (`rag.build_golden`, `tests/test_golden_set.py`):
+source chunks exist and match the expected locations, every key-fact regex matches the
+sources, every number in a ground truth appears in its sources, every absence pattern has zero
+hits. These checks cannot tell whether a paraphrase keeps the meaning — the first 7b draft of
+one item turned "does not fall within the scope" into "can use" and passed all of them. **So 47
+of the 60 items have no human line-by-line check: scores in step 6 should be read with that in
+mind.** The `verification` field of each item says which applies.
+
+What the 7b drafts were good for: picking a checkable fact and its key numbers. What they were
+not good for: wording (64–100 % of the question's words copied from the passage, even with an
+explicit "use your own words" example) and faithful reference answers. JSON-schema-constrained
+decoding fixed the format problems; it cannot fix meaning.
