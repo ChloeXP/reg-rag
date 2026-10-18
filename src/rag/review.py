@@ -219,7 +219,8 @@ def needed_per_work(spec: dict) -> dict[str, int]:
 def check_item(it: dict, draft: dict, chunks: dict, spec: dict) -> tuple[list, list]:
     errors, warnings = [], []
     sid = it["seed_id"]
-    if "verify against SOURCE" in (it.get("notes") or ""):  # 5.4-B: Claude proposed, human verifies
+    note = it.get("notes") or ""
+    if "verify against SOURCE" in note or "HIGH-RISK: verify" in note:  # 5.4-B: human verifies
         errors.append(f"{sid}: not verified yet - check it against SOURCE, then edit the note")
     if it.get("question_language") not in ("auto", "fr", "en"):
         errors.append(f"{sid}: question_language must be auto / fr / en")
@@ -381,6 +382,10 @@ def apply_sheet(cfg: dict, spec: dict) -> None:
                 "type": "factual",
                 "origin": "llm_7b",
                 "reviewed": True,
+                # 5.4-B: Claude rewrote; high-risk items verified line by line, rest spot-checked
+                "verification": "line_by_line"
+                if "HIGH-RISK verified line by line" in (it.get("notes") or "")
+                else "spot_check",
                 "edited": {
                     "question": " ".join(it[f"question_{lang}"].split())
                     != " ".join(draft[f"question_{lang}"].split()),
