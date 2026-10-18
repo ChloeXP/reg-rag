@@ -2,7 +2,7 @@
 
 import pytest
 
-from rag.metrics import aggregate, grouped, location_ranks, retrieval_scores
+from rag.metrics import aggregate, grouped, location_ranks, mcnemar_exact, retrieval_scores
 
 KS = [1, 3, 5]
 
@@ -44,3 +44,11 @@ def test_aggregate_and_grouped():
     g = grouped(rows, "type", ["hit@1"])
     assert g["factual"] == {"n": 2, "hit@1": 0.5}
     assert g["multi_hop"]["n"] == 1
+
+
+def test_mcnemar_exact_known_values():
+    assert mcnemar_exact(0, 0) == 1.0
+    assert mcnemar_exact(3, 0) == pytest.approx(0.25)  # 2 * (1/8): 3 gains alone prove nothing
+    assert mcnemar_exact(6, 0) == pytest.approx(2 / 64)  # first count below 0.05
+    assert mcnemar_exact(2, 2) == 1.0
+    assert mcnemar_exact(1, 4) == mcnemar_exact(4, 1)

@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from math import comb
 
 from rag.golden import is_hit  # the ONE hit rule (decision #68)
 
@@ -45,3 +46,16 @@ def grouped(rows: list[dict], field: str, metric_keys: list[str]) -> dict[str, d
     for r in rows:
         groups[str(r[field])].append(r)
     return {g: aggregate(rs, metric_keys) for g, rs in sorted(groups.items())}
+
+
+def mcnemar_exact(gained: int, lost: int) -> float:
+    """Two-sided exact McNemar p-value on the questions that FLIPPED between two runs.
+
+    Questions both runs got right (or both wrong) say nothing about which run is better;
+    under "no difference" each flip is a coin toss, so p = P(at least this lopsided | n, 0.5).
+    """
+    n = gained + lost
+    if n == 0:
+        return 1.0
+    tail = sum(comb(n, i) for i in range(min(gained, lost) + 1)) / 2**n
+    return min(1.0, 2 * tail)
