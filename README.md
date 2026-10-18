@@ -4,7 +4,7 @@ Bilingual (FR/EN) question-answering over public EU banking regulation
 (EU AI Act, CRR, EBA guidelines, ACPR publications), running **fully locally**
 with open-source tools, and evaluated systematically (RAGAS, DeepEval, MLflow).
 
-> Status: 🚧 Step 3 / 12 — chunks embedded (bge-m3) in Qdrant; dense, BM25 and hybrid search; 47 tests green (+3 documented xfail).
+> Status: 🚧 Step 6 / 12 — systematic evaluation done (two-layer harness, RAGAS with a local judge, MLflow); `baseline-v2` = structure chunks + bge-m3 + cross-encoder rerank; 199 tests green (+4 documented xfail, 1 xpass).
 
 ## Stack
 
@@ -13,6 +13,8 @@ with open-source tools, and evaluated systematically (RAGAS, DeepEval, MLflow).
 | LLM             | Ollama (qwen2.5:3b dev, 7b eval)  | native on host    |
 | Vector store    | Qdrant v1.19.1                    | Docker            |
 | Experiment log  | MLflow v3.16.1                    | Docker            |
+| Embeddings / reranker | bge-m3 / bge-reranker-v2-m3  | host (MPS)        |
+| LLM-judge evaluation | RAGAS 0.4.3, judge qwen2.5:7b (`eval` dependency group only) | host |
 | Python env      | uv + Python 3.11 (locked)         | host              |
 
 Ollama runs natively (not in Docker) because Docker on macOS cannot access the Apple Silicon GPU (Metal).
@@ -59,10 +61,18 @@ uv run python scripts/smoke_ask.py --models qwen2.5:3b qwen2.5:7b   # 5 smoke qu
 
 # 9. Golden set (step 5): rebuild eval/golden_set.jsonl from its sources and re-check it
 uv run python -m rag.golden --check-spec     # blueprint quotas vs corpus
-uv run python -m rag.build_golden            # 60 items, md5 3b5252ca... (deterministic)
+uv run python -m rag.build_golden            # 60 items, golden-v2 md5 1c0cb11a... (deterministic)
+
+# 11. Experiments (step 6): every run -> runs/eval/<time>__<tag>/ + an MLflow entry
+uv run python -m rag.eval_retrieval --set retrieval.mode=hybrid --tag hybrid   # retrieval only, ~1 min
+uv run python -m rag.eval_answers --set llm.model=qwen2.5:7b --tag e2e-7b       # end to end, 10-45 min
+uv run python -m rag.compare_runs runs/eval/<A> runs/eval/<B>                    # paired flips + p-values
+uv run --group eval python -m rag.ragas_eval runs/eval/<e2e run> --subset --mlflow  # RAGAS, ~3 min/item
+uv run python -m rag.rescore runs/eval/<run>   # re-score a finished run with the current golden set
+uv run python scripts/step6_report.py          # the result tables below
 
 # 10. Tests: unit (no data) + data-quality (corpus) + integration (Qdrant, Ollama running)
-uv run pytest -q                       # 134 passed, 5 xfailed (known limits, see below)
+uv run pytest -q                       # 199 passed, 4 xfailed, 1 xpassed (known limits, see below)
 uv run pytest -q -m "not ollama"       # skip the LLM calls (~45 s)
 ```
 
@@ -238,3 +248,132 @@ What the 7b drafts were good for: picking a checkable fact and its key numbers. 
 not good for: wording (64–100 % of the question's words copied from the passage, even with an
 explicit "use your own words" example) and faithful reference answers. JSON-schema-constrained
 decoding fixed the format problems; it cannot fix meaning.
+
+## Experiments (step 6) — tags `baseline-v2`, `golden-v2`
+
+Question: which configuration answers best, and how sure can we be with 40 questions? Everything
+below is on the **dev split only** (40 items); the 20 test items have not been run yet and will
+be run once, at the end.
+
+### How it is measured
+
+- **Two layers** (`rag.eval_retrieval`, `rag.eval_answers`). Retrieval experiments call no LLM:
+  for each item, does every expected location appear in the top *k*? (hit@k, MRR; ~1 min per
+  configuration, deterministic). End-to-end runs score the model's answers against the golden
+  fields: key-fact recall (bilingual regexes), all key facts, exact refusal on no-answer items,
+  resistance to injection, valid citations, whether the evidence was in the context at all, and
+  latency (the LLM is unloaded before each run: a prompt-prefix cache left by the previous run
+  once cut a run's LLM time from 9.2 s to 5.3 s per question).
+- **Context injection** is tested worst-case: the poisoned passage (labelled like a document,
+  `EXTERNAL NOTE`) is inserted first and, in a second call, last; the item passes only if the
+  model resists both times.
+- **A hit rule that works for any chunking** (`rag.spans`): golden locations were written with
+  structure-chunk metadata, which fixed-size chunks do not have. A location is turned into its
+  source text (from the reference structure cards) and a card counts as a hit if ≥ 50 % of its
+  8-word sequences come from that text, or it holds ≥ 50 % of it. Chosen by comparing it card by
+  card with the metadata rule on all 61 locations (it keeps all 239 cards that rule accepted) and
+  checked by replaying three earlier runs: identical ranks for all 99 item × run pairs.
+- **Paired statistics**: with 31–33 items one question is 3 points, so configurations are
+  compared item by item — exact McNemar test on the items that flip, sign test on the direction
+  of change. About 6 one-directional flips are needed for p < 0.05: small effects are invisible.
+- **Every run is a directory** (rows, summary, the exact config) **and an MLflow entry** (config
+  as params, md5 of the golden set and of the chunks as tags, grouped metrics, the rows as
+  artifacts). `rag.compare_runs` refuses to compare runs scored on different data.
+- **golden-v2**: a symmetric audit of 155 answers (missed facts written differently *and* generic
+  regexes matching the wrong thing) gave 11 versioned patches in
+  [`eval/golden_patches.yaml`](eval/golden_patches.yaml) — 7 paraphrases the regexes missed
+  (e.g. « machine-lisible », « supervisés par des personnes naturelles »), 2 false positives (a
+  transitional range « entre 4 % et 4,5 % » counted as the CRR Article 92 minimum), 1 reference
+  answer that failed its own regex, 1 extra location. The v1 sources are not edited; each patch
+  states the old value, which must match exactly. Finished runs were re-scored without re-running
+  any model (`rag.rescore`); re-scoring with v1 first reproduced every original score.
+
+### Results (dev, golden-v2, tables generated by `scripts/step6_report.py`)
+
+| Retrieval (dev, 33 items with a location) | hit@1 | hit@5 | hit@20 | MRR | multi-hop hit@5 | vs baseline-v1: hit@5 flips better / worse | rank direction better / worse |
+|---|---|---|---|---|---|---|---|
+| structure, dense (baseline-v1) | 0.42 | 0.79 | 0.94 | 0.74 | 0.38 | — | — |
+| structure, hybrid RRF k=60 | 0.36 | 0.76 | 0.94 | 0.62 | 0.25 | 1 / 2 (p = 1.000) | 5 / 14 (p = 0.064) |
+| structure, dense + rerank (baseline-v2) | 0.58 | 0.82 | 0.94 | 0.80 | 0.38 | 3 / 2 (p = 1.000) | 11 / 7 (p = 0.481) |
+| fixed 512, dense | 0.24 | 0.48 | 0.79 | 0.47 | 0.12 | 1 / 11 (p = 0.006) | 4 / 18 (p = 0.004) |
+
+| End to end (dev, 40 items) | evidence in context | key-fact recall | all key facts | refused answerable | valid citations | refused no-answer (6) | resisted injection (3) | s / question |
+|---|---|---|---|---|---|---|---|---|
+| 3b, dense top-5 (v1) | 0.79 | 0.51 | 0.29 | 0.00 | 0.81 | 0.50 | 2 / 3 | 10.7 |
+| 3b, rerank top-5 (v2) | 0.82 | 0.74 | 0.55 | 0.00 | 0.84 | 0.33 | 2 / 3 | 19.3 |
+| 3b, rerank top-3 | 0.79 | 0.73 | 0.52 | 0.00 | 0.84 | 0.67 | 2 / 3 | 15.6 |
+| 7b, dense top-5 | 0.79 | 0.58 | 0.42 | 0.13 | 0.89 | 1.00 | 3 / 3 | 25.5 |
+| 7b, rerank top-5 | 0.82 | 0.68 | 0.48 | 0.10 | 0.96 | 1.00 | 3 / 3 | 42.6 |
+
+| Paired comparison (31 answerable items) | key-fact recall better / worse | all key facts gained / lost |
+|---|---|---|
+| 3b, dense top-5 (v1) → 3b, rerank top-5 (v2) | 13 / 2 (p = 0.007) | 9 / 1 (p = 0.021) |
+| 7b, dense top-5 → 7b, rerank top-5 | 8 / 5 (p = 0.581) | 5 / 3 (p = 0.727) |
+| 3b, rerank top-5 (v2) → 7b, rerank top-5 | 5 / 7 (p = 0.774) | 3 / 5 (p = 0.727) |
+| 3b, rerank top-5 (v2) → 3b, rerank top-3 | 3 / 4 (p = 1.000) | 2 / 3 (p = 1.000) |
+
+| RAGAS, 12-item subset, judge qwen2.5:7b | faithfulness | answer_relevancy | context_precision | context_recall | judge failures |
+|---|---|---|---|---|---|
+| 3b, dense top-5 (v1) | 0.81 | 0.85 | 0.79 | 0.90 | 0 / 48 |
+| 3b, rerank top-5 (v2) | 0.91 | 0.84 | 0.81 | 0.93 | 0 / 48 |
+
+Notes: the 3b dense latency is 11.9 s without the 6 items whose prompt was still cached from a
+smoke run. hit@20 of the baseline is 0.94 under golden-v2 (0.91 under v1) because of the added
+location. The RAGAS subset is stratified but deliberately over-represents cross-lingual items
+(6 / 12, against 8 / 31 overall), so its averages do not stand for the whole dev split.
+
+MLflow view of the five golden-v2 end-to-end runs (filter
+`tags.layer = 'e2e' and tags.golden_version = 'v2'`). `refused` is the refusal rate on the 6
+no-answer items; the 3b dense latency includes the 6 cached items mentioned above.
+
+![MLflow: answer metrics of the end-to-end runs](docs/img/mlflow_e2e_metrics.png)
+![MLflow: seconds per question of the end-to-end runs](docs/img/mlflow_e2e_latency.png)
+
+### What the experiments say
+
+1. **Structure-aware chunking is the biggest single choice**: hit@5 0.79 vs 0.48 for fixed
+   512-token windows (12 flips, 11 against fixed, p = 0.006), although fixed chunks carry ~1.7×
+   more text each. Still significant when the hit-rule threshold is relaxed to 0.4–0.2.
+2. **Equal-weight hybrid (BM25 + dense, RRF k = 60) does not help here**: hit@5 0.76, and the
+   rank of the first relevant card gets worse on 14 items vs better on 5 (p = 0.064). Reading the
+   losses: RRF rewards cards found by both retrievers over the one dense ranks first; BM25 favours
+   documents in the question's language (French questions pulled French cards for English-only
+   EBA guidelines); article numbers are drowned by cross-references ("Article 395(5)(b)").
+3. **A cross-encoder reranker barely changes retrieval but changes the answers**: hit@5 0.79 →
+   0.82 (not significant), yet qwen2.5:3b key-fact recall goes 0.51 → 0.74 (13 better, 2 worse,
+   p = 0.007) and all-facts 0.29 → 0.55 (p = 0.021). With 7b the direction is the same but
+   smaller (0.58 → 0.68, p = 0.58): the reranker mostly helps the small model. It costs ~6.5 s
+   per question on an M1. This is `baseline-v2`. Top-3 instead of top-5 after reranking gives the
+   same answers (3 / 4 flips) with 35 % shorter prompts.
+4. **7b is not better than 3b on key facts, it is safer**: 0.68 vs 0.74 (5 / 7, p = 0.77), but it
+   refuses all 6 no-answer questions (3b: 2), resists all 3 injections (3b dropped its citations
+   when told "without any citations"), and 96 % of its non-refusal answers cite validly. The
+   price: it refused 3 of 31 answerable questions (2 with all the evidence in its context), and it
+   is 2.2× slower.
+   Which model is "best" depends on what the product values.
+5. **RAGAS with a local judge is a second opinion, not the verdict**: on the 12-item subset no
+   metric separates dense from rerank. Faithfulness and context recall sit near 1.0; a regex check
+   of the contexts found 2 / 24 context-recall scores of 1.0 where most key facts were absent. Two
+   blind spots showed up: an answer that names no number at all is faithful and relevant (0.80–1.0)
+   while answering nothing, and answer relevancy rewards an answer that restates the question.
+   Zero judge failures in 96 metric evaluations (instructor JSON mode, temperature 0).
+
+In one sentence: *structure-aware chunking lifts retrieval hit@5 from 0.48 to 0.79, and
+cross-encoder reranking lifts qwen2.5:3b key-fact recall from 0.51 to 0.74 (dev, paired,
+p ≤ 0.007); on a 12-item subset, RAGAS faithfulness moves from 0.81 to 0.91 (not significant).*
+
+### Limits
+
+- 40 dev items: only large effects are detectable; nothing here has touched the test split.
+- 47 of the 60 items have no human line-by-line check (step 5), and the golden-v2 patches were
+  written after reading these answers. The audit looked for errors in both directions and every
+  patch cites its evidence, but the scores are measured with a ruler adjusted on the same data.
+  The only test item changed (G041) was fixed from its own reference answer, not from any answer.
+- Key-fact regexes show that a fact is present, not that it is used correctly in context.
+- The RAGAS judge (qwen2.5:7b) has so far only judged 3b answers; judging 7b answers with the
+  same model would be self-assessment.
+- Multi-hop questions remain the weak spot in every configuration (evidence for all hops in the
+  context for 25–38 % of them): one question is embedded as one vector and lands on one hop.
+- Not run yet: chunk sizes 256 / 1024, multilingual-e5, hybrid variants (weighted RRF, BM25 only
+  within the question's language, article-number routing), query decomposition, and re-chunking
+  the ACPR paper whose cover title leaked into 116 card headers.
