@@ -137,7 +137,7 @@
       pattern: '(annex\w*\s+IV)'
   source_chunk_ids: [ai_act_en::structure::0404]
   expected: {"work_id": "ai_act", "sections": ["ANNEX VII ", "ANNEXE VII "]}
-  notes: "rewrite proposed by Claude (5.4-B) - spot-check only (not verified line by line)"
+  notes: "rewrite proposed by Claude (5.4-B) - not human-verified (Claude rewrite only)"
 
 # ========================================================================================
 # S04 · ai_act · en · annex · copy 1.0 · flags: facts 3/4 in source, mentions passage/document/article
@@ -190,7 +190,7 @@
       pattern: '\bURL\b'
   source_chunk_ids: [ai_act_en::structure::0408]
   expected: {"work_id": "ai_act", "sections": ["ANNEX VIII ", "ANNEXE VIII "]}
-  notes: "rewrite proposed by Claude (5.4-B) - spot-check only (not verified line by line)"
+  notes: "rewrite proposed by Claude (5.4-B) - not human-verified (Claude rewrite only)"
 
 # ========================================================================================
 # S05 · ai_act · fr · annex · copy 0.5 · flags: evidence not verbatim, facts 3/4 in source
@@ -304,7 +304,7 @@
       pattern: '(infers|dédui[ts])'
   source_chunk_ids: [ai_act_en::structure::0208]
   expected: {"work_id": "ai_act", "articles": ["3"], "markers": ["Article 3 Definitions", "Article 3 Définitions"]}
-  notes: "Article 3(1); not the smoke question (Q5 is Article 6). rewrite proposed by Claude (5.4-B) - spot-check only (not verified line by line)"
+  notes: "Article 3(1); not the smoke question (Q5 is Article 6). rewrite proposed by Claude (5.4-B) - not human-verified (Claude rewrite only)"
 
 # ========================================================================================
 # S07 · ai_act · en · article · copy 0.86 · flags: -
@@ -556,7 +556,7 @@
       pattern: '(all\s+relevant\s+jurisdictions|toutes\s+les\s+juridictions)'
   source_chunk_ids: [crr_en::structure::0461]
   expected: {"work_id": "crr", "articles": ["207"], "markers": ["Article 207 Requirements for financial collateral"]}
-  notes: "rewrite proposed by Claude (5.4-B) - spot-check only (not verified line by line)"
+  notes: "rewrite proposed by Claude (5.4-B) - not human-verified (Claude rewrite only)"
 
 # ========================================================================================
 # S12 · crr · en · article · copy 0.89 · flags: -
@@ -609,7 +609,7 @@
       pattern: '(limited\s+payments|no\s+payments|paiements?\s+limités|aucun\s+paiement)'
   source_chunk_ids: [crr_en::structure::0609]
   expected: {"work_id": "crr", "articles": ["296"], "markers": ["Article 296 Recognition of contractual netting agreements"]}
-  notes: "rewrite proposed by Claude (5.4-B) - spot-check only (not verified line by line)"
+  notes: "rewrite proposed by Claude (5.4-B) - not human-verified (Claude rewrite only)"
 
 # ========================================================================================
 # S13 · crr · en · article · copy 1.0 · flags: -
@@ -771,7 +771,7 @@
       pattern: '(prendre\s+des\s+copies|take\s+copies|copies)'
   source_chunk_ids: [dora_fr::structure::0077]
   expected: {"work_id": "dora", "markers": ["Recital 73]", "Considérant 73]"]}
-  notes: "rewrite proposed by Claude (5.4-B) - spot-check only (not verified line by line)"
+  notes: "rewrite proposed by Claude (5.4-B) - not human-verified (Claude rewrite only)"
 
 # ========================================================================================
 # S17 · dora · fr · article · copy 0.67 · flags: evidence not verbatim, facts 1/2 in source
@@ -871,7 +871,7 @@
       pattern: '(conflits?\s+d.intérêts|conflicts?\s+of\s+interest)'
   source_chunk_ids: [dora_fr::structure::0175]
   expected: {"work_id": "dora", "articles": ["27"], "markers": ["Article 27 Exigences applicables aux testeurs afin de réaliser des tests de pénétration fondés sur la menace"]}
-  notes: "Article 27(2). rewrite proposed by Claude (5.4-B) - spot-check only (not verified line by line)"
+  notes: "Article 27(2). rewrite proposed by Claude (5.4-B) - not human-verified (Claude rewrite only)"
 
 # ========================================================================================
 # S19 · dora · fr · article · copy 0.83 · flags: mentions passage/document/article
@@ -958,7 +958,7 @@
       pattern: '(méthodes\s+explicatives|explanat\w*\s+methods|explainability\s+methods)'
   source_chunk_ids: [acpr_ia_gouvernance_fr::structure::0008]
   expected: {"work_id": "acpr_ia_2020", "sections": ["Juin 2020 Gouvernance des algorithmes d’intelligence artificielle dans le secteur financier Document de réflexion AUTEURS Laurent Dupont, Olivier Fliche, Su Yang Pôle Fintech-Innovation, ACPR > 2.2. Travaux exploratoires > 2.2.2. Thème 2 : Modèles internes en banque et assurance"]}
-  notes: "rewrite proposed by Claude (5.4-B) - spot-check only (not verified line by line)"
+  notes: "rewrite proposed by Claude (5.4-B) - not human-verified (Claude rewrite only)"
 
 # ========================================================================================
 # S21 · acpr_ia_2020 · fr · body · copy 1.0 · flags: mentions passage/document/article
@@ -1028,7 +1028,7 @@
       pattern: '(instituts\s+spécialisés|speciali[sz]ed\s+institutes)'
   source_chunk_ids: [acpr_ia_gouvernance_fr::structure::0089]
   expected: {"work_id": "acpr_ia_2020", "sections": ["Juin 2020 Gouvernance des algorithmes d’intelligence artificielle dans le secteur financier Document de réflexion AUTEURS Laurent Dupont, Olivier Fliche, Su Yang Pôle Fintech-Innovation, ACPR > ÉVALUATION EMPIRIQUE DU ML > 5.5.2. Enjeux spécifiques aux superviseurs"]}
-  notes: "7b draft was a yes/no question. rewrite proposed by Claude (5.4-B) - spot-check only (not verified line by line)"
+  notes: "7b draft was a yes/no question. rewrite proposed by Claude (5.4-B) - not human-verified (Claude rewrite only)"
 
 # ========================================================================================
 # S23 · acpr_ia_2020 · fr · body · copy 0.8 · flags: mentions passage/document/article
@@ -1108,7 +1108,7 @@
       pattern: '(moteur\s+de\s+règles|rules?\s+engine|business\s+rules)'
   source_chunk_ids: [acpr_ia_gouvernance_fr::structure::0130]
   expected: {"work_id": "acpr_ia_2020", "sections": ["Annexes > 8.1. Atelier « LCB-FT » > 8.1.9. Atelier complémentaire"]}
-  notes: "rewrite proposed by Claude (5.4-B) - spot-check only (not verified line by line)"
+  notes: "rewrite proposed by Claude (5.4-B) - not human-verified (Claude rewrite only)"
 
 # ========================================================================================
 # S25 · acpr_ia_2020 · fr · body · copy 0.86 · flags: facts 3/4 in source
@@ -1148,7 +1148,7 @@
       pattern: '(post-modélisation|post-model|post-hoc)'
   source_chunk_ids: [acpr_ia_gouvernance_fr::structure::0178]
   expected: {"work_id": "acpr_ia_2020", "sections": ["Annexes > 11. Recension des méthodes explicatives en IA"]}
-  notes: "rewrite proposed by Claude (5.4-B) - spot-check only (not verified line by line)"
+  notes: "rewrite proposed by Claude (5.4-B) - not human-verified (Claude rewrite only)"
 
 # ========================================================================================
 # S26 · eba_gl_2019_02 · en · body · copy 1.0 · flags: evidence not verbatim
@@ -1272,7 +1272,7 @@
       pattern: '(authori[sz]ation|autorisation|agrément)'
   source_chunk_ids: [eba_gl_outsourcing_en::structure::0039]
   expected: {"work_id": "eba_gl_2019_02", "sections": ["4. Guidelines on outsourcing > Title III – Governance framework > 6 Sound governance arrangements and outsourcing"]}
-  notes: "Paragraph 39 (the source chunk also holds 38-40). rewrite proposed by Claude (5.4-B) - spot-check only (not verified line by line)"
+  notes: "Paragraph 39 (the source chunk also holds 38-40). rewrite proposed by Claude (5.4-B) - not human-verified (Claude rewrite only)"
 
 # ========================================================================================
 # S28 · eba_gl_2019_02 · en · body · copy 1.0 · flags: facts 3/4 in source
@@ -1412,7 +1412,7 @@
       pattern: '(information\s+assets|actifs\s+informationnels|actifs\s+d.information)'
   source_chunk_ids: [eba_gl_ict_security_en::structure::0026]
   expected: {"work_id": "eba_gl_2019_04", "sections": ["Guidelines on ICT and security risk management > 3.3. ICT and security risk management framework > 3.3.2. Identification of functions, processes and assets"]}
-  notes: "rewrite proposed by Claude (5.4-B) - spot-check only (not verified line by line)"
+  notes: "rewrite proposed by Claude (5.4-B) - not human-verified (Claude rewrite only)"
 
 # ========================================================================================
 # S31 · eba_gl_2019_04 · en · body · copy 1.0 · flags: evidence not verbatim
@@ -1465,7 +1465,7 @@
       pattern: '(data\s+to\s+be\s+lost|perte\s+de\s+données|données\s+(peuvent\s+être\s+)?perdues)'
   source_chunk_ids: [eba_gl_ict_security_en::structure::0051]
   expected: {"work_id": "eba_gl_2019_04", "sections": ["Guidelines on ICT and security risk management > 3.7. Business continuity management > 3.7.2. Business continuity planning"]}
-  notes: "rewrite proposed by Claude (5.4-B) - spot-check only (not verified line by line)"
+  notes: "rewrite proposed by Claude (5.4-B) - not human-verified (Claude rewrite only)"
 
 # ========================================================================================
 # S32 · eba_gl_2020_06 · en · body · copy 0.71 · flags: evidence not verbatim, facts 3/4 in source, mentions passage/document/article
@@ -1582,7 +1582,7 @@
       pattern: '(proportionate|proportionn)'
   source_chunk_ids: [eba_gl_loan_origination_en::structure::0073]
   expected: {"work_id": "eba_gl_2020_06", "sections": ["5. Loan origination procedures > 5.2 Assessment of borrower’s creditworthiness > 5.2.6 Lending to medium-sized and large enterprises"]}
-  notes: "rewrite proposed by Claude (5.4-B) - spot-check only (not verified line by line)"
+  notes: "rewrite proposed by Claude (5.4-B) - not human-verified (Claude rewrite only)"
 
 # ========================================================================================
 # S34 · eba_gl_2020_06 · en · body · copy 1.0 · flags: -
@@ -1633,7 +1633,7 @@
       pattern: '(commitment\s+date|date\s+d.engagement)'
   source_chunk_ids: [eba_gl_loan_origination_en::structure::0099]
   expected: {"work_id": "eba_gl_2020_06", "sections": ["8. Monitoring framework > 8.2 Monitoring of credit exposures and borrowers"]}
-  notes: "rewrite proposed by Claude (5.4-B) - spot-check only (not verified line by line)"
+  notes: "rewrite proposed by Claude (5.4-B) - not human-verified (Claude rewrite only)"
 
 # ========================================================================================
 # S35 · eba_gl_2021_05 · en · body · copy 0.67 · flags: evidence not verbatim, facts 1/2 in source
@@ -1897,7 +1897,7 @@
       pattern: 'minimi[sz]ation'
   source_chunk_ids: [eba_ml_irb_report_en::structure::0020]
   expected: {"work_id": "eba_ml_irb_2023", "sections": ["5. Interaction with (non-CRR) regulatory frameworks > 5.1 Interaction with GDPR"]}
-  notes: "rewrite proposed by Claude (5.4-B) - spot-check only (not verified line by line)"
+  notes: "rewrite proposed by Claude (5.4-B) - not human-verified (Claude rewrite only)"
 
 # ========================================================================================
 # S40 · eba_ml_irb_2023 · en · body · copy 0.78 · flags: -
@@ -1949,4 +1949,4 @@
       pattern: '(simpler\s+approaches|approches\s+plus\s+simples)'
   source_chunk_ids: [eba_ml_irb_report_en::structure::0031]
   expected: {"work_id": "eba_ml_irb_2023", "sections": ["Annex I– Principle-based recommendations Recommendations regarding the regulatory compliant use of ML techniques in the context of the IRB framework"]}
-  notes: "rewrite proposed by Claude (5.4-B) - spot-check only (not verified line by line)"
+  notes: "rewrite proposed by Claude (5.4-B) - not human-verified (Claude rewrite only)"

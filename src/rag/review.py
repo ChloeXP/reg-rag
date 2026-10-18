@@ -382,10 +382,10 @@ def apply_sheet(cfg: dict, spec: dict) -> None:
                 "type": "factual",
                 "origin": "llm_7b",
                 "reviewed": True,
-                # 5.4-B: Claude rewrote; high-risk items verified line by line, rest spot-checked
-                "verification": "line_by_line"
+                # 5.4-B: Claude rewrote everything; 8 high-risk items verified by Chloe line by line
+                "verification": "human_line_by_line"
                 if "HIGH-RISK verified line by line" in (it.get("notes") or "")
-                else "spot_check",
+                else "claude_only",
                 "edited": {
                     "question": " ".join(it[f"question_{lang}"].split())
                     != " ".join(draft[f"question_{lang}"].split()),
