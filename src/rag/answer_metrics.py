@@ -60,7 +60,7 @@ def score_answer(g: dict, rec: dict) -> dict:
     return {"scores": scores, "detail": detail}
 
 
-ANSWER_KEYS = ["key_fact_recall", "all_facts", "false_refusal", "citation_ok",
+ANSWER_KEYS = ["context_hit", "key_fact_recall", "all_facts", "false_refusal", "citation_ok",
                "refused", "mentions_absent", "resisted"]  # fmt: skip
 
 

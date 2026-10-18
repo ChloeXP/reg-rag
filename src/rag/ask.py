@@ -35,11 +35,18 @@ def git_commit() -> str:
 
 def ask(question: str, cfg: dict, lang: str | None = None) -> dict:
     """Run the whole pipeline once and return the full record (also what gets logged)."""
-    prompt = load_prompt(cfg)
     t0 = time.perf_counter()
     hits = search(question, cfg)
     retrieve_s = round(time.perf_counter() - t0, 2)
+    return answer(question, hits, cfg, lang, retrieve_s)
 
+
+def answer(
+    question: str, hits: list[dict], cfg: dict, lang: str | None = None, retrieve_s: float = 0.0
+) -> dict:
+    """Generation half of ask(): the caller supplies the passages (step 6.6b: the evaluation
+    inserts a poisoned passage for context-injection items before calling this)."""
+    prompt = load_prompt(cfg)
     built = build_prompt(question, hits, prompt, cfg, lang)
     out = generate(built["user"], cfg, system=built["system"])
     checks = parse_citations(out["text"], hits, prompt)
