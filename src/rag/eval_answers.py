@@ -28,7 +28,7 @@ from rag.ask import answer, git_commit
 from rag.config import PROJECT_ROOT, apply_overrides, load_config
 from rag.eval_retrieval import GROUP_FIELDS, ranker
 from rag.generate import load_prompt
-from rag.llm import generate
+from rag.llm import generate, unload
 from rag.retrieve import search
 from rag.tracking import file_md5, log_run
 
@@ -90,7 +90,15 @@ def run_item(g: dict, cfg: dict, rank_of) -> dict:
         "llm_s": llm_s,
         "total_s": round(retrieve_s + llm_s, 2),
         "prompt_tokens": variants[0]["record"]["prompt_tokens"],
+        # P67 cache detector: ~3 ms/token on an M1 for qwen2.5:3b; ~0.02 when the prefix was cached
+        "prefill_ms_per_tok": _ms_per_tok(variants[0]["record"]),
     }
+
+
+def _ms_per_tok(rec: dict) -> float | None:
+    if not rec.get("prefill_s") or not rec.get("prompt_tokens"):
+        return None
+    return round(1000 * rec["prefill_s"] / rec["prompt_tokens"], 3)
 
 
 def _stats(values: list[float]) -> dict[str, float]:
@@ -100,7 +108,7 @@ def _stats(values: list[float]) -> dict[str, float]:
 
 def summarize(rows: list[dict]) -> dict:
     lat = {}
-    for key in ["total_s", "retrieve_s", "llm_s", "prompt_tokens"]:
+    for key in ["total_s", "retrieve_s", "llm_s", "prompt_tokens", "prefill_ms_per_tok"]:
         for stat, value in _stats([r[key] for r in rows]).items():
             lat[f"{key.removesuffix('_s')}_{stat}"] = value
     return {
@@ -143,6 +151,7 @@ def print_report(summary: dict, rows: list[dict]) -> None:
         f"\nlatency per item: total mean {lat['total_mean']:.1f}s p50 {lat['total_p50']:.1f}s"
         f" max {lat['total_max']:.1f}s | llm mean {lat['llm_mean']:.1f}s"
         f" | prompt tokens mean {lat['prompt_tokens_mean']:.0f}"
+        f" | prefill {lat['prefill_ms_per_tok_p50']:.2f} ms/token (p50; ~0.0x = cached prefix)"
     )
 
 
@@ -189,6 +198,7 @@ def main() -> None:
             "overrides": args.set or [], "git": git_commit(), "model": cfg["llm"]["model"],
             "prompt_version": prompt["version"], "prompt_sha256": prompt["sha256"],
             "hit_rule": cfg["eval"]["hit_rule"], "injection_positions": POSITIONS,
+            "llm_cache": "model unloaded before the run (P67)",
             "golden_md5": file_md5(PROJECT_ROOT / cfg["eval"]["golden_set"]),
             "chunks_md5": file_md5(PROJECT_ROOT / cfg["paths"]["processed_dir"] / "chunks.parquet"),
         }  # fmt: skip
@@ -205,7 +215,8 @@ def main() -> None:
     if todo:
         t0 = time.perf_counter()
         search("warm-up", cfg, top_k=1)  # embedding (+ reranker) models
-        generate("Say OK.", cfg)  # loads the LLM; also the timing reference for a cold load
+        unload(cfg)  # P67: drop prompt caches left by an earlier run -> same cold start for all
+        generate("Say OK.", cfg)  # loads the LLM again, outside the per-item timings
         print(f"warm-up {time.perf_counter() - t0:.1f}s")
         rank_of = ranker(cfg, items)
         with open(out / ANSWERS, "a", encoding="utf-8") as f:

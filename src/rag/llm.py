@@ -44,6 +44,22 @@ def generate(
     }
 
 
+def unload(cfg: dict) -> None:
+    """Unload the model from Ollama (keep_alive=0): its KV / prompt cache goes with it.
+
+    Step 6.6c (P67): run B started right after run A re-used A's cached prompt prefixes
+    (same system prompt + same first passages) -> prefill 15x faster, latency not comparable.
+    Unloading before each evaluation run gives every run the same cold start.
+    """
+    llm = cfg["llm"]
+    resp = httpx.post(
+        f"{llm['base_url']}/api/generate",
+        json={"model": llm["model"], "keep_alive": 0},
+        timeout=llm["timeout_s"],
+    )
+    resp.raise_for_status()
+
+
 def _seconds(ns: int | None) -> float | None:
     return None if ns is None else round(ns / 1e9, 2)
 
