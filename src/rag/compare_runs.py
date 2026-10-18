@@ -14,7 +14,7 @@ from pathlib import Path
 
 from rag.metrics import mcnemar_exact
 
-DATA_KEYS = ["split", "golden_md5", "chunks_md5"]
+DATA_KEYS = ["split", "golden_md5", "chunks_md5", "hit_rule"]  # same questions, texts, rule
 HEADLINE = ["hit@1", "hit@3", "hit@5", "hit@10", "hit@20", "recall@5", "rr"]
 
 

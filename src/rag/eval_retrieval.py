@@ -20,8 +20,10 @@ import yaml
 
 from rag.ask import git_commit
 from rag.config import PROJECT_ROOT, apply_overrides, load_config
+from rag.golden import load_chunks
 from rag.metrics import aggregate, grouped, location_ranks, retrieval_scores
 from rag.retrieve import search
+from rag.spans import location_span, span_ranks
 from rag.tracking import file_md5, log_run
 
 GROUP_FIELDS = ["type", "verification", "cross_lingual", "question_language"]
@@ -48,14 +50,32 @@ def check_depth(cfg: dict) -> int:
     return depth
 
 
+def ranker(cfg: dict, items: list[dict]):
+    """hits, item -> rank of each expected location, under eval.hit_rule (6.5, P55)."""
+    rule = cfg["eval"]["hit_rule"]
+    if rule == "location":
+        return lambda hits, g: location_ranks(hits, g["expected"])
+    if rule != "span":
+        raise ValueError(f"unknown eval.hit_rule {rule!r}")
+    span_cfg = cfg["eval"]["span"]
+    structure = load_chunks(cfg, "structure")  # the reference segmentation, whatever is searched
+    n = span_cfg["shingle_words"]
+    spans = {g["id"]: [location_span(e, structure, n) for e in g["expected"]] for g in items}
+    empty = [g for g, ss in spans.items() if not all(ss)]
+    if empty:
+        raise ValueError(f"locations with no text (fix the golden set first): {empty}")
+    return lambda hits, g: span_ranks(hits, spans[g["id"]], span_cfg)
+
+
 def evaluate(items: list[dict], cfg: dict) -> list[dict]:
     depth, ks = check_depth(cfg), cfg["eval"]["ks"]
+    rank_of = ranker(cfg, items)
     rows = []
     for g in items:
         t0 = time.perf_counter()
         hits = search(g["question"], cfg, top_k=depth)
         retrieve_s = round(time.perf_counter() - t0, 3)
-        ranks = location_ranks(hits, g["expected"])
+        ranks = rank_of(hits, g)
         rows.append(
             {
                 "id": g["id"],
@@ -156,6 +176,7 @@ def main() -> None:
         "overrides": args.set or [],
         "git": git_commit(),
         "warmup_s": warmup_s,
+        "hit_rule": cfg["eval"]["hit_rule"],
         # data identity: which questions and which chunk texts this run was scored on
         "golden_md5": file_md5(PROJECT_ROOT / cfg["eval"]["golden_set"]),
         "chunks_md5": file_md5(PROJECT_ROOT / cfg["paths"]["processed_dir"] / "chunks.parquet"),

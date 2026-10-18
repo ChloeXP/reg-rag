@@ -73,6 +73,13 @@ eval:                  # step 5
                        # Must be <= retrieval.hybrid.candidates, else hybrid top-k changes.
   ks: [1, 3, 5, 10, 20]
   runs_subdir: eval    # runs/<runs_subdir>/<timestamp>__<tag>/ (gitignored, like runs/)
+  # 6.5 (P55): which rule decides that a retrieved card "found" an expected location
+  hit_rule: span       # span = text overlap with the location's text (works for ANY chunking);
+                       # location = golden.is_hit on card metadata (structure cards only)
+  span:
+    shingle_words: 8   # 8-word sequences: 5 matched repeated legal boilerplate across articles
+    min_share_of_hit: 0.5       # >= half of the card's text comes from the location, OR
+    min_share_of_location: 0.5  # the card holds >= half of the location (short recitals)
 
 mlflow:
   tracking_uri: http://localhost:5001
