@@ -52,7 +52,9 @@ retrieval:
     candidates: 20     # hits fetched from EACH retriever before fusing
     rrf_k: 60          # RRF constant from Cormack et al. 2009; larger = flatter rank weights
   rerank:              # step 6.4: cross-encoder re-scores the first-stage candidates
-    enabled: false     # baseline-v1 has no reranker; experiments turn it on with --set
+    enabled: true      # baseline-v2 (decision 6.6d-B). baseline-v1 = false. Evidence, 3b, dev 40:
+                       # key-fact recall 0.51 -> 0.70 (13 better / 4 worse, p = 0.049),
+                       # all facts 0.29 -> 0.52; retrieval hit@5 unchanged (0.79); +7.6 s/question
     model: BAAI/bge-reranker-v2-m3   # multilingual (same XLM-R family as bge-m3), FR/EN pairs
     candidates: 20     # first-stage hits re-scored; = eval.retrieval_depth, so hit@20 cannot change
     batch_size: 8

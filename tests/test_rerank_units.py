@@ -44,7 +44,7 @@ def test_empty_hits(fake_model):
 
 def test_rerank_is_off_in_baseline_and_covers_eval_depth():
     r = CFG["retrieval"]["rerank"]
-    assert r["enabled"] is False  # baseline-v1 has no reranker
+    assert r["enabled"] is True  # baseline-v2 (decision 6.6d-B); baseline-v1 had it off
     assert CFG["eval"]["retrieval_depth"] <= r["candidates"]
     assert r["max_length"] >= CFG["chunking"]["chunk_size"] + 64  # chunk + question fit
 

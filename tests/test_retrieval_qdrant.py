@@ -15,6 +15,10 @@ from rag.index import collection_name, get_client, point_id
 from rag.retrieve import search
 
 CFG = load_config()
+# These tests document the FIRST stage (step 3: dense / bm25 / hybrid ranks + xfails), so the
+# reranker of baseline-v2 is switched off here; the default path is tested in test_default_reranks.
+CFG_DEFAULT = load_config()
+CFG["retrieval"]["rerank"]["enabled"] = False
 PARQUET = PROJECT_ROOT / CFG["paths"]["processed_dir"] / "chunks.parquet"
 QUERIES = {
     q["id"]: q
@@ -85,3 +89,14 @@ def test_bm25_finds_the_article_number():  # the reason BM25 was added (3.5)
 @pytest.mark.parametrize("qid", ["Q3", "Q4", "Q5"])
 def test_hybrid_structure_at_rank_1(qid):
     assert first_hit(qid, "hybrid", "structure") == 1
+
+
+def test_default_reranks():
+    """baseline-v2 default path: first stage (rerank.candidates) -> cross-encoder -> top_k."""
+    k = CFG_DEFAULT["retrieval"]["top_k"]
+    hits = search(QUERIES["Q4"]["query"], CFG_DEFAULT)
+    assert len(hits) == k and [h["rank"] for h in hits] == list(range(1, k + 1))
+    assert all(
+        1 <= h["first_stage_rank"] <= CFG_DEFAULT["retrieval"]["rerank"]["candidates"] for h in hits
+    )
+    assert [h["score"] for h in hits] == sorted((h["score"] for h in hits), reverse=True)
