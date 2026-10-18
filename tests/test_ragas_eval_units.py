@@ -53,3 +53,19 @@ def test_failed_judgements_are_counted_not_averaged():
     ]
     s = R.summarize(lines, rows, CFG)["overall"]["faithfulness"]
     assert (s["mean"], s["n_ok"], s["n_failed"]) == (1.0, 1, 1)
+
+
+def test_subset_is_deterministic_and_meets_quotas():
+    import json
+
+    from rag.config import PROJECT_ROOT
+
+    items = [json.loads(x) for x in (PROJECT_ROOT / CFG["eval"]["golden_set"]).open()]
+    rule = CFG["eval"]["ragas"]["subset"]
+    ids = R.ragas_subset(items, rule)
+    assert ids == R.ragas_subset(items, rule) and len(ids) == sum(rule["quotas"].values())
+    by_id = {g["id"]: g for g in items}
+    assert set(rule["anchors"]) <= set(ids)
+    assert all(by_id[i]["split"] == "dev" for i in ids)  # never the test split
+    for kind, quota in rule["quotas"].items():
+        assert sum(by_id[i]["type"] == kind for i in ids) == quota

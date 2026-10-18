@@ -89,6 +89,10 @@ eval:                  # step 5
     max_tokens: 2048   # judge output (statement lists, verdicts)
     timeout_s: 600
     metrics: [faithfulness, answer_relevancy, context_precision, context_recall]
+    subset:            # decision 6.7-C: ~2.8 min/item with a 7b judge -> 12 of the 31 answerable
+      quotas: {factual: 7, multi_hop: 3, article_lookup: 2}
+      anchors: [G001, G003, G004, G012, G021]   # already judged in the 6.7b trial (kept, not redone)
+      seed: 42         # tie-break only; priority: human line-by-line > cross-lingual > new work
 
 mlflow:
   tracking_uri: http://localhost:5001

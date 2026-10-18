@@ -18,6 +18,7 @@ import asyncio
 import hashlib
 import json
 import os
+import random
 import time
 from collections import defaultdict
 from importlib import metadata
@@ -54,6 +55,34 @@ def passages(record: dict, chunks: dict[str, dict]) -> list[str]:
         label, body = split_passage(c)
         out.append(f"{label}\n{body}")
     return out
+
+
+def ragas_subset(items: list[dict], rule: dict) -> list[str]:
+    """Deterministic stratified subset of answerable dev items (decision 6.7-C).
+
+    Per type quota; anchors first; then greedy by priority: human line-by-line verified (4),
+    cross-lingual (2), a work not covered yet (1); ties broken by a seeded shuffle.
+    Cross-lingual items are deliberately over-represented: the judge's reliability on them
+    is one of the questions of step 6.7.
+    """
+    pool = [g for g in items if g["split"] == "dev" and g["expected_behavior"] == "answer"]
+    by_id = {g["id"]: g for g in pool}
+    chosen = [by_id[a] for a in rule["anchors"]]
+    order = {g["id"]: k for k, g in enumerate(random.Random(rule["seed"]).sample(pool, len(pool)))}
+    for kind, quota in rule["quotas"].items():
+        while sum(g["type"] == kind for g in chosen) < quota:
+            works = {g["expected"][0]["work_id"] for g in chosen}
+            cands = [g for g in pool if g["type"] == kind and g not in chosen]
+            if not cands:
+                raise ValueError(f"not enough {kind} items for quota {quota}")
+            chosen.append(min(cands, key=lambda g, w=works: _priority(g, w, order)))
+    return sorted(g["id"] for g in chosen)
+
+
+def _priority(g: dict, works: set[str], order: dict[str, int]) -> tuple:
+    prio = 4 * (g["verification"] == "human_line_by_line") + 2 * g["cross_lingual"]
+    prio += g["expected"][0]["work_id"] not in works
+    return (-prio, order[g["id"]])
 
 
 def metric_inputs(name: str, g: dict, answer: str, ctx: list[str]) -> dict:
@@ -153,6 +182,8 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="RAGAS on a finished end-to-end run (local judge).")
     ap.add_argument("run_dir")
     ap.add_argument("--ids", nargs="+", help="only these items (trial runs)")
+    ap.add_argument("--subset", action="store_true", help="the config's 12-item subset (6.7-C)")
+    ap.add_argument("--mlflow", action="store_true", help="also log to the run's MLflow entry")
     args = ap.parse_args()
 
     run = Path(args.run_dir)
@@ -163,16 +194,42 @@ def main() -> None:
     }
     rows = [json.loads(x) for x in (run / "answers.jsonl").read_text(encoding="utf-8").splitlines()]
     rows = [r for r in rows if r["expected_behavior"] == "answer"]
-    if args.ids:
-        rows = [r for r in rows if r["id"] in set(args.ids)]
+    ids = (
+        ragas_subset(list(golden.values()), cfg["eval"]["ragas"]["subset"])
+        if args.subset
+        else args.ids
+    )
+    if ids:
+        rows = [r for r in rows if r["id"] in set(ids)]
+        print("items:", " ".join(ids))
     chunks = load_texts(cfg)
     asyncio.run(judge(rows, golden, chunks, build_metrics(cfg), run / OUT))
 
     lines = [json.loads(x) for x in (run / OUT).read_text(encoding="utf-8").splitlines()]
     lines = [x for x in lines if x["id"] in {r["id"] for r in rows}]
     summary = summarize(lines, rows, cfg)
+    summary["meta"]["items"] = sorted(r["id"] for r in rows)
     (run / SUMMARY).write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(summary["overall"], indent=2))
+    if args.mlflow:
+        log_ragas(run, summary, cfg)
+
+
+def log_ragas(run: Path, summary: dict, cfg: dict) -> None:
+    """Add the RAGAS scores to the run's existing MLflow entry (needs the MLflow container)."""
+    import mlflow
+
+    run_id = (run / "mlflow_run_id.txt").read_text(encoding="utf-8").strip()
+    mlflow.set_tracking_uri(cfg["mlflow"]["tracking_uri"])
+    with mlflow.start_run(run_id=run_id):
+        for name, s in summary["overall"].items():
+            mlflow.log_metric(f"ragas/{name}", s["mean"] if s["mean"] is not None else float("nan"))
+            mlflow.log_metric(f"ragas/{name}_n_failed", s["n_failed"])
+        mlflow.log_metric("ragas/n_items", len(summary["meta"]["items"]))
+        mlflow.set_tag("ragas_judge", summary["meta"]["judge_model"])
+        mlflow.log_artifact(str(run / OUT))
+        mlflow.log_artifact(str(run / SUMMARY))
+    print(f"logged to mlflow run {run_id}")
 
 
 if __name__ == "__main__":
