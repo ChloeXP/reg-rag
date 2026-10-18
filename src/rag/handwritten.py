@@ -5,7 +5,8 @@ Run: uv run python -m rag.handwritten --check   # validate eval/handwritten.yaml
 eval/handwritten.yaml is the source of truth (drafted by Claude, verified by a human: 5.5-B).
 Checks per type, all against chunks.parquet:
   answer types   every source chunk is covered by an expected location and vice versa,
-                 key-fact regexes match the sources, multi_hop has >= 2 locations
+                 key-fact regexes match the sources, every number of the ground truth appears
+                 in the sources, multi_hop has >= 2 locations
   no_answer      every absence pattern has ZERO hits in the whole corpus (both strategies)
   adversarial    injection is 'question' or 'context' (context needs injected_passage),
                  must_not / must_match regexes compile
@@ -23,8 +24,8 @@ import yaml
 from rag.config import PROJECT_ROOT, load_config
 from rag.golden import is_hit, load_spec
 
-BEHAVIOR = {"multi_hop": "answer", "article_lookup": "answer", "no_answer": "refuse",
-            "adversarial": "resist"}  # fmt: skip
+BEHAVIOR = {"factual": "answer", "multi_hop": "answer", "article_lookup": "answer",
+            "no_answer": "refuse", "adversarial": "resist"}  # fmt: skip
 
 
 def load_items(cfg: dict) -> list[dict]:
@@ -76,6 +77,10 @@ def check_item(it: dict, by_id: dict, corpus: list[dict], errors: list, warnings
         if typ == "multi_hop" and len(locs) < 2:
             errors.append(f"{sid}: multi_hop needs >= 2 expected locations, has {len(locs)}")
         source = "\n".join(by_id[i]["text"] for i in ids)
+        flat = re.sub(r"\s+", "", source)  # every number of the ground truth is in the sources
+        for num in re.findall(r"\d+(?:[.,]\d+)?", it.get("ground_truth") or ""):
+            if num not in flat:
+                errors.append(f"{sid}: number {num!r} of the ground truth is not in the sources")
         facts = it.get("key_facts") or []
         if not 1 <= len(facts) <= 4:
             errors.append(f"{sid}: needs 1-4 key_facts")

@@ -1,6 +1,7 @@
 # Step 5.5 - handwritten golden-set items: multi_hop, article_lookup, no_answer, adversarial.
 # Drafted by Claude from the corpus (decision 5.5-B), verified by Chloe: HIGH-RISK items line
 # by line (side-by-side aid), the rest spot-checked. Validate: uv run python -m rag.handwritten --check
+# expected[0] = the PRIMARY work (counted against spec.works).
 # key_facts / must_match patterns are bilingual: the system answers in the QUESTION language.
 # no_answer: absence_patterns must have ZERO hits in the corpus (checked by code) = proof of absence.
 
@@ -73,8 +74,8 @@
   question_language: fr
   question: "DORA et les orientations de l'ABE sur l'externalisation imposent toutes deux de tenir un registre : quels accords chaque registre doit-il couvrir, et à quels niveaux ?"
   expected_behavior: answer
-  expected: [{"work_id": "dora", "articles": ["28"]}, {"work_id": "eba_gl_2019_02", "sections": ["4. Guidelines on outsourcing > Title III – Governance framework > 11 Documentation requirements"]}]
-  source_chunk_ids: [dora_fr::structure::0178, eba_gl_outsourcing_en::structure::0046]
+  expected: [{"work_id": "eba_gl_2019_02", "sections": ["4. Guidelines on outsourcing > Title III – Governance framework > 11 Documentation requirements"]}, {"work_id": "dora", "articles": ["28"]}]
+  source_chunk_ids: [eba_gl_outsourcing_en::structure::0046, dora_fr::structure::0178]
   ground_truth: |-
     DORA (article 28, paragraphe 3) impose aux entités financières de tenir et mettre à
     jour, au niveau de l'entité et aux niveaux sous-consolidé et consolidé, un registre
@@ -98,8 +99,8 @@
   question_language: en
   question: "How often do DORA and the EBA ICT and security risk guidelines require the ICT risk management framework to be reviewed?"
   expected_behavior: answer
-  expected: [{"work_id": "dora", "articles": ["6"]}, {"work_id": "eba_gl_2019_04", "sections": ["Guidelines on ICT and security risk management > 3.3. ICT and security risk management framework > 3.3.1. Organisation and objectives"]}]
-  source_chunk_ids: [dora_fr::structure::0130, eba_gl_ict_security_en::structure::0025]
+  expected: [{"work_id": "eba_gl_2019_04", "sections": ["Guidelines on ICT and security risk management > 3.3. ICT and security risk management framework > 3.3.1. Organisation and objectives"]}, {"work_id": "dora", "articles": ["6"]}]
+  source_chunk_ids: [eba_gl_ict_security_en::structure::0025, dora_fr::structure::0130]
   ground_truth: |-
     Under DORA (Article 6(5)) the ICT risk management framework is documented and reviewed
     at least once a year (periodically for microenterprises), as well as upon the occurrence

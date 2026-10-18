@@ -1,0 +1,75 @@
+# Step 5.6 - answer-level fields for the 5 step-3 smoke queries (eval/smoke_queries.yaml keeps
+# questions + locations, fixed by hand in step 3). Ground truths written by Claude from the cited
+# chunks (not human-verified); key facts follow the step-4 findings (P39: the 25 % of Article 395).
+- id: Q1
+  question_language: fr
+  source_chunk_ids: [dora_fr::structure::0157, dora_fr::structure::0158]
+  ground_truth: >-
+    Les entités financières déclarent les incidents majeurs liés aux TIC à l'autorité compétente
+    concernée (article 46) au moyen d'une notification initiale puis des rapports prévus au
+    paragraphe 4, en utilisant les modèles visés à l'article 20 ; les établissements de crédit
+    importants les déclarent à l'autorité nationale compétente, qui transmet immédiatement à la BCE,
+    et les États membres peuvent exiger une transmission aux CSIRT. Les cybermenaces importantes
+    peuvent être notifiées à titre volontaire. Lorsqu'un incident majeur a une incidence sur les
+    intérêts financiers des clients, les entités financières les informent sans retard injustifié
+    de l'incident et des mesures prises.
+  key_facts:
+    - {fact: "autorité compétente", pattern: '(autorité\s+compétente|competent\s+authority)'}
+    - {fact: "notification initiale", pattern: '(notification\s+initiale|initial\s+notification)'}
+    - {fact: "informer les clients", pattern: '(clients)'}
+- id: Q2
+  question_language: en
+  source_chunk_ids: [eba_gl_outsourcing_en::structure::0046, eba_gl_outsourcing_en::structure::0047]
+  ground_truth: >-
+    For all existing outsourcing arrangements the register should include at least a reference
+    number; the start, renewal and end dates and notice periods; a description of the outsourced
+    function and data (including whether personal data are involved); a category; the service
+    provider's name, registration number, LEI, address and parent company; the countries where the
+    service is performed and where data are located; whether the function is critical or important
+    and why; for cloud outsourcing the service and deployment models and data storage locations; and
+    the date of the latest criticality assessment. For critical or important functions, additional
+    information is required, such as the entities using the outsourcing, group membership of the
+    provider, the latest risk assessment, the approving body, governing law, audit dates,
+    sub-contractors, substitutability, alternative providers, time-criticality and estimated annual
+    budget cost.
+  key_facts:
+    - {fact: "reference number", pattern: 'reference\s+number'}
+    - {fact: "critical or important (yes/no)", pattern: 'critical\s+or\s+important'}
+    - {fact: "location of the data", pattern: '(location|country)'}
+- id: Q3
+  question_language: fr
+  source_chunk_ids: [crr_en::structure::0278]
+  ground_truth: >-
+    Institutions shall at all times satisfy a Common Equity Tier 1 capital ratio of 4,5 %, a Tier 1
+    capital ratio of 6 % and a total capital ratio of 8 %, each expressed as a percentage of the
+    total risk exposure amount (Article 92(1)-(2)).
+  key_facts:
+    - {fact: "CET1 4,5 %", pattern: '4[.,]5\W{0,3}%'}
+    - {fact: "Tier 1 6 %", pattern: '\b6\W{0,3}%'}
+    - {fact: "total capital 8 %", pattern: '\b8\W{0,3}%'}
+- id: Q4
+  question_language: en
+  source_chunk_ids: [crr_en::structure::0753]
+  ground_truth: >-
+    Article 395 limits large exposures: after credit risk mitigation, an institution shall not
+    incur an exposure to a client or group of connected clients exceeding 25 % of its eligible
+    capital. Where the client is an institution, the limit is 25 % of eligible capital or EUR 150
+    million, whichever is higher (and then within a reasonable limit set by the institution, not
+    above 100 % of eligible capital). EBA was to issue guidelines on limits to exposures to shadow
+    banking entities.
+  key_facts:
+    - {fact: "25 % of eligible capital", pattern: '25\W{0,3}%'}
+    - {fact: "EUR 150 million for institutions", pattern: '150\s+mill'}
+- id: Q5
+  question_language: en
+  source_chunk_ids: [ai_act_en::structure::0223]
+  ground_truth: >-
+    Article 6 sets the classification rules for high-risk AI systems: an AI system is high-risk if
+    it is a safety component of, or itself, a product covered by the Union harmonisation legislation
+    in Annex I that requires a third-party conformity assessment (Article 6(1)), and AI systems
+    listed in Annex III are also high-risk (Article 6(2)), unless they do not pose a significant
+    risk of harm (Article 6(3)); an Annex III system that performs profiling of natural persons is
+    always high-risk.
+  key_facts:
+    - {fact: "Article 6", pattern: '(Article|article)\s+6\b'}
+    - {fact: "Annex III", pattern: '(Annex|annexe)\s+III'}

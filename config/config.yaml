@@ -60,6 +60,7 @@ vector_store:
 eval:                  # step 5
   golden_spec: eval/golden_spec.yaml   # blueprint: quotas per type / split / language / work
   handwritten: eval/handwritten.yaml   # 5.5: multi_hop / article_lookup / no_answer / adversarial
+  smoke_golden: eval/smoke_golden.yaml # 5.6: ground truths + key facts for the 5 smoke queries
   golden_set: eval/golden_set.jsonl    # the questions themselves (5.4-5.5)
 
 mlflow:
