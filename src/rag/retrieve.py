@@ -101,7 +101,7 @@ def search(
 ) -> list[dict]:
     """Top_k chunks for a query. mode: 'dense' (bge-m3) | 'bm25' (keywords) | 'hybrid'."""
     top_k = top_k or cfg["retrieval"]["top_k"]
-    strategy = strategy or cfg["chunking"]["strategy"]
+    strategy = strategy or cfg["retrieval"]["strategy"]
     mode = mode or cfg["retrieval"]["mode"]
     if mode == "dense":
         return dense_search(embed_query(query, cfg), cfg, strategy, top_k, filters)

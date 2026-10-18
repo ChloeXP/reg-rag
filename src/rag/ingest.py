@@ -2,7 +2,7 @@
 
 One command rebuilds the whole processed dataset from data/raw + manifest + config:
     uv run python -m rag.ingest
-The output holds BOTH strategies (column `strategy`); config `chunking.strategy` picks the
+The output holds BOTH strategies (column `strategy`); config `retrieval.strategy` picks the
 one used downstream, so experiments switch strategy without re-ingesting.
 """
 

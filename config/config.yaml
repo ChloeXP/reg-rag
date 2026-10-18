@@ -26,11 +26,7 @@ generation:            # step 4
   default_language: en # used when the question has no FR/EN signal (e.g. "CRR Article 395")
 
 # Filled in later steps:
-chunking:
-  strategy: structure  # fixed | structure (step 2). Also = which collection search() queries.
-                       # Baseline (step 4): structure, chosen on 5 smoke queries only;
-                       # fixed vs structure is re-tested on the golden set (step 6).
-                       # TODO before step 6: split into retrieval.strategy (decision 4.1-C).
+chunking:              # how chunks.parquet is BUILT (rag.ingest makes both strategies)
   tokenizer: BAAI/bge-m3   # count tokens with the embedding model's own tokenizer
   chunk_size: 512      # tokens
   chunk_overlap: 64    # tokens shared by two consecutive fixed chunks
@@ -43,6 +39,10 @@ embedding:
   normalize: true      # unit vectors: cosine == dot product
 
 retrieval:
+  strategy: structure  # fixed | structure: which chunk collection search() queries.
+                       # Baseline (step 4): structure, chosen on 5 smoke queries only;
+                       # fixed vs structure is re-tested on the golden set (step 6).
+                       # Moved here from chunking.strategy in 6.0 (decision 4.1-C).
   top_k: 5             # baseline: 5 x ~310 tokens (structure) ~ 1.6k ctx tokens << num_ctx 8192
   mode: dense          # dense | bm25 | hybrid
   bm25:                # Okapi BM25, classic defaults (Robertson); tuned later on the golden set
@@ -62,6 +62,11 @@ eval:                  # step 5
   handwritten: eval/handwritten.yaml   # 5.5: multi_hop / article_lookup / no_answer / adversarial
   smoke_golden: eval/smoke_golden.yaml # 5.6: ground truths + key facts for the 5 smoke queries
   golden_set: eval/golden_set.jsonl    # the questions themselves (5.4-5.5)
+  # step 6.1 - retrieval layer (decision 6.0-B: no LLM, deterministic location metrics)
+  retrieval_depth: 20  # ONE ranking per question; every @k is read from its prefix.
+                       # Must be <= retrieval.hybrid.candidates, else hybrid top-k changes.
+  ks: [1, 3, 5, 10, 20]
+  runs_subdir: eval    # runs/<runs_subdir>/<timestamp>__<tag>/ (gitignored, like runs/)
 
 mlflow:
   tracking_uri: http://localhost:5001

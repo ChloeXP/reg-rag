@@ -55,7 +55,7 @@ def ask(question: str, cfg: dict, lang: str | None = None) -> dict:
             "temperature": llm["temperature"],
             "num_ctx": llm["num_ctx"],
             "embedding": cfg["embedding"]["model"],
-            "strategy": cfg["chunking"]["strategy"],
+            "strategy": cfg["retrieval"]["strategy"],
             "mode": r["mode"],
             "top_k": r["top_k"],
             "prompt_version": prompt["version"],
