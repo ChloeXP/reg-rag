@@ -2,7 +2,8 @@
 
 Run:  uv run python -m rag.eval_retrieval [--set retrieval.mode=hybrid] [--tag hybrid]
 No LLM is called. One process: bge-m3 is loaded once (warm-up query, timed separately).
-Writes runs/eval/<timestamp>__<tag>/{retrieval.jsonl, summary.json, config.yaml}.
+Writes runs/eval/<timestamp>__<tag>/{retrieval.jsonl, summary.json, config.yaml}, then logs
+that directory to MLflow (step 6.2; --no-mlflow to skip, rag.tracking to log it later).
 The test split is refused unless --final is given (decision #64: tune on dev only).
 """
 
@@ -21,6 +22,7 @@ from rag.ask import git_commit
 from rag.config import PROJECT_ROOT, apply_overrides, load_config
 from rag.metrics import aggregate, grouped, location_ranks, retrieval_scores
 from rag.retrieve import search
+from rag.tracking import file_md5, log_run
 
 GROUP_FIELDS = ["type", "verification", "cross_lingual", "question_language"]
 
@@ -127,6 +129,7 @@ def main() -> None:
     ap.add_argument("--tag", help="run name suffix (default: strategy-mode-embedding)")
     ap.add_argument("--split", choices=["dev", "test"], default="dev")
     ap.add_argument("--final", action="store_true", help="required to touch the test split")
+    ap.add_argument("--no-mlflow", action="store_true", help="only write the run directory")
     args = ap.parse_args()
     if args.split == "test" and not args.final:
         ap.error("the test split is evaluated once, at the end: add --final if this is it")
@@ -148,11 +151,20 @@ def main() -> None:
         "overrides": args.set or [],
         "git": git_commit(),
         "warmup_s": warmup_s,
+        # data identity: which questions and which chunk texts this run was scored on
+        "golden_md5": file_md5(PROJECT_ROOT / cfg["eval"]["golden_set"]),
+        "chunks_md5": file_md5(PROJECT_ROOT / cfg["paths"]["processed_dir"] / "chunks.parquet"),
     }
     out = write_run(rows, summary, cfg, meta)
     print(f"{meta['tag']} | {args.split} | {len(rows)} items | warm-up {warmup_s}s")
     print_summary(summary, rows, cfg)
     print(f"\n-> {out}")
+    if not args.no_mlflow:
+        try:
+            print(f"mlflow run {log_run(out, cfg)}")
+        except Exception as e:  # server down etc.: the run directory is already safe on disk
+            print(f"WARNING mlflow logging failed ({type(e).__name__}: {e})")
+            print(f"  retry later: uv run python -m rag.tracking {out}")
 
 
 if __name__ == "__main__":
