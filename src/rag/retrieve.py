@@ -9,6 +9,7 @@ from qdrant_client import models
 from rag import bm25
 from rag.embed import embed_query
 from rag.index import DENSE, SPARSE, collection_name, get_client
+from rag.rerank import rerank
 
 HIT_FIELDS = ["chunk_id", "doc_id", "work_id", "language", "kind", "article", "section",
               "page_start", "page_end", "text"]  # fmt: skip
@@ -99,10 +100,24 @@ def search(
     filters: dict | None = None,
     mode: str | None = None,
 ) -> list[dict]:
-    """Top_k chunks for a query. mode: 'dense' (bge-m3) | 'bm25' (keywords) | 'hybrid'."""
+    """Top_k chunks for a query. mode: 'dense' (bge-m3) | 'bm25' (keywords) | 'hybrid'.
+
+    With retrieval.rerank.enabled, the first stage fetches rerank.candidates hits and the
+    cross-encoder keeps the best top_k (step 6.4).
+    """
     top_k = top_k or cfg["retrieval"]["top_k"]
     strategy = strategy or cfg["retrieval"]["strategy"]
     mode = mode or cfg["retrieval"]["mode"]
+    rr = cfg["retrieval"]["rerank"]
+    if rr["enabled"]:
+        first = first_stage(query, cfg, max(rr["candidates"], top_k), strategy, filters, mode)
+        return rerank(query, first, cfg, top_k)
+    return first_stage(query, cfg, top_k, strategy, filters, mode)
+
+
+def first_stage(
+    query: str, cfg: dict, top_k: int, strategy: str, filters: dict | None, mode: str
+) -> list[dict]:
     if mode == "dense":
         return dense_search(embed_query(query, cfg), cfg, strategy, top_k, filters)
     if mode == "bm25":

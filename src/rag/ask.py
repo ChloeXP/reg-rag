@@ -58,6 +58,7 @@ def ask(question: str, cfg: dict, lang: str | None = None) -> dict:
             "strategy": cfg["retrieval"]["strategy"],
             "mode": r["mode"],
             "top_k": r["top_k"],
+            "rerank": r["rerank"]["model"] if r["rerank"]["enabled"] else None,
             "prompt_version": prompt["version"],
             "prompt_sha256": prompt["sha256"],
         },  # fmt: skip

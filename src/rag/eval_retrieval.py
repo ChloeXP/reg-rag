@@ -41,6 +41,10 @@ def check_depth(cfg: dict) -> int:
     if cfg["retrieval"]["mode"] == "hybrid" and depth > cfg["retrieval"]["hybrid"]["candidates"]:
         # a deeper fused list would use more candidates than search(top_k=5) does in production
         raise ValueError("eval.retrieval_depth must be <= retrieval.hybrid.candidates")
+    rr = cfg["retrieval"]["rerank"]
+    if rr["enabled"] and depth > rr["candidates"]:
+        # deeper than the reranked pool would mix reranked and first-stage order
+        raise ValueError("eval.retrieval_depth must be <= retrieval.rerank.candidates")
     return depth
 
 
@@ -82,7 +86,8 @@ def summarize(rows: list[dict], cfg: dict) -> dict:
 
 def default_tag(cfg: dict) -> str:
     r = cfg["retrieval"]
-    return f"{r['strategy']}-{r['mode']}-{cfg['embedding']['model'].split('/')[-1]}"
+    tag = f"{r['strategy']}-{r['mode']}-{cfg['embedding']['model'].split('/')[-1]}"
+    return tag + ("-rerank" if r["rerank"]["enabled"] else "")
 
 
 def write_run(rows: list[dict], summary: dict, cfg: dict, meta: dict) -> Path:
