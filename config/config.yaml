@@ -82,6 +82,13 @@ eval:                  # step 5
     shingle_words: 8   # 8-word sequences: 5 matched repeated legal boilerplate across articles
     min_share_of_hit: 0.5       # >= half of the card's text comes from the location, OR
     min_share_of_location: 0.5  # the card holds >= half of the location (short recitals)
+  ragas:               # step 6.7 (decision 6.7-A: ragas only in the `eval` dependency group)
+    judge_model: reg-rag-judge:qwen2.5-7b      # built from judge_modelfile (num_ctx, temp 0)
+    judge_modelfile: eval/judge/qwen2.5-7b.Modelfile
+    base_url: http://localhost:11434/v1        # Ollama's OpenAI-compatible endpoint
+    max_tokens: 2048   # judge output (statement lists, verdicts)
+    timeout_s: 600
+    metrics: [faithfulness, answer_relevancy, context_precision, context_recall]
 
 mlflow:
   tracking_uri: http://localhost:5001

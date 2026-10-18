@@ -37,6 +37,10 @@ dev = [
     "pytest>=9.1.1",
     "ruff>=0.17.1",
 ]
+eval = [
+    "langchain-community<0.4",
+    "ragas==0.4.3",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

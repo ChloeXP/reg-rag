@@ -1,0 +1,8 @@
+# RAGAS judge for step 6.7. Build once (and after any change to this file):
+#   ollama create reg-rag-judge:qwen2.5-7b -f eval/judge/qwen2.5-7b.Modelfile
+# Why a derived model: RAGAS talks to Ollama through the OpenAI-compatible endpoint, which
+# cannot pass num_ctx per request; the default context window could silently truncate a
+# 5-passage judge prompt (same trap as decision #4). Temperature 0 = reproducible verdicts.
+FROM qwen2.5:7b
+PARAMETER num_ctx 8192
+PARAMETER temperature 0
