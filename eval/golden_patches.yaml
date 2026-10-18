@@ -1,0 +1,76 @@
+# golden-v2 (step 6.9): scoring-only corrections on top of the v1 sources.
+# The v1 sources (smoke_golden.yaml, review/factual_accepted.jsonl, handwritten.yaml) are NOT
+# edited: rag.build_golden applies these patches after loading them. Each patch states the old
+# value (must match exactly, so a patch can never silently apply to something else), the new
+# value, the journal entry it fixes and the evidence. Corpus changes (P56) are out of scope.
+# Audit method: ALL non-refused answers of 5 e2e runs (3b dense/rerank5/rerank3, 7b rerank/
+# dense = 155 answers) were checked both ways: missed facts written differently (false
+# negatives) AND generic patterns matching the wrong thing (false positives, P64).
+version: v2
+patches:
+  - id: V2-01
+    src_id: S08
+    fact: format lisible par machine
+    old: '(lisible\s+par\s+machine|machine[-\s]readable)'
+    new: '(lisible\s+par\s+(une\s+)?machine|machine[-\s](readable|lisible))'
+    reason: 'P74 false negative: "machine-lisible" (7b rerank, 7b dense)'
+  - id: V2-02
+    src_id: S20
+    fact: méthodes explicatives
+    old: '(méthodes\s+explicatives|explanat\w*\s+methods|explainability\s+methods)'
+    new: '(méthodes\s+(explicatives|d.explicabilité)|(explanat\w*|explainab\w*)\s+methods)'
+    reason: 'P74 false negative: "explainable methods" (7b rerank)'
+  - id: V2-03
+    src_id: S26
+    fact: materially impair
+    old: '(materially\s+impair|gravement|sensiblement|de\s+manière\s+significative)'
+    new: '(materially\s+impair|gravement|sensiblement|de\s+manière\s+significative|significativement|matériellement|de\s+manière\s+matérielle)'
+    reason: 'P74 false negative: "affecterait significativement" (3b dense, 3b rerank5), "matériellement compromettre" (3b rerank3), "compromettrait de manière matérielle" (7b dense)'
+  - id: V2-04
+    src_id: S30
+    fact: interdependencies
+    old: '(interdependenc|interdépendances)'
+    new: '(interdependenc|interdépendances|dependenc\w*\s+(on|between)|dépendances?\s+(à|vis-à-vis|entre))'
+    reason: 'P74 false negative: "dependencies on other internal and external systems" (3b rerank3, 7b rerank)'
+  - id: V2-05
+    src_id: H13
+    fact: contrôle humain
+    old: '(contrôle\s+humain|human\s+oversight)'
+    new: '(contrôle\s+humain|human\s+oversight|(supervision|surveillance)\s+humaine|(supervis|surveill)\w*\s+(efficace(ment)?\s+)?par\s+des\s+personnes)'
+    reason: 'P74 false negative (all 5 runs): "supervisés par des personnes naturelles", "supervision humaine", "surveillance efficace par des personnes"'
+  - id: V2-06
+    src_id: H15
+    fact: written contract
+    old: '(par\s+écrit|written|document\s+écrit)'
+    new: '(par\s+écrit|written|document\s+écrit|in\s+writing)'
+    reason: 'P74 false negative: "documented in writing" (7b rerank)'
+  - id: V2-07
+    src_id: H12
+    fact: remains fully responsible
+    old: '(fully\s+responsible|pleinement\s+responsable|entièrement\s+responsable)'
+    new: '(fully\s+responsible|pleinement\s+responsable|entièrement\s+responsable|(reste|restent|demeure|demeurent)\s+responsables?|remains?\s+responsible)'
+    reason: 'P74 false negative, BORDERLINE: "reste responsable des activités externalisées" (3b rerank5, 3b rerank3, 7b dense) keeps the core (responsibility is not transferred) but drops "fully"'
+  - id: V2-08
+    src_id: Q3
+    fact: CET1 4,5 %
+    old: '4[.,]5\W{0,3}%'
+    new: '(?<!et\s)(?<!and\s)(?<![-–])4[.,]5\W{0,3}%'
+    reason: 'P64 false positive: transitional range "entre 4% et 4,5%" (3b dense; also step-4 3b "4–4,5 %") is Article 465, not the Article 92 minimum'
+  - id: V2-09
+    src_id: Q3
+    fact: Tier 1 6 %
+    old: '\b6\W{0,3}%'
+    new: '(?<!et\s)(?<!and\s)(?<![-–])\b6\W{0,3}%'
+    reason: 'P64 false positive: transitional range "entre 5,5% et 6%" (3b dense)'
+  - id: V2-10
+    src_id: S01
+    fact: regardless of the type of entity
+    old: '(regardless\s+of\s+the\s+type\s+of\s+entity|(indépendamment\s+du|quel(le)?\s+que\s+soit\s+le)\s+type\s+d.entit)'
+    new: '(regardless\s+of\s+the\s+type\s+of\s+entity|whatever\s+the\s+type\s+of\s+entity|(indépendamment\s+du|quel(le)?\s+que\s+soit\s+le)\s+type\s+d.entit)'
+    reason: 'P63: the item''s own ground truth ("whatever the type of entity") did not match its key fact'
+  - id: V2-11
+    src_id: H07
+    hop: 1
+    add_sections:
+      - 'Juin 2020 Gouvernance des algorithmes d’intelligence artificielle dans le secteur financier Document de réflexion AUTEURS Laurent Dupont, Olivier Fliche, Su Yang Pôle Fintech-Innovation, ACPR > QUESTION 3 : DÉFINITION DES NIVEAUX D’EXPLICATION'
+    reason: 'P73: both facts of hop 2 (observation, réplication) are stated in ACPR "QUESTION 3 : DÉFINITION DES NIVEAUX D''EXPLICATION" (card 0094), same work; checked against the text, not inferred'

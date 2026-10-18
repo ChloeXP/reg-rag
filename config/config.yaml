@@ -70,6 +70,7 @@ eval:                  # step 5
   handwritten: eval/handwritten.yaml   # 5.5: multi_hop / article_lookup / no_answer / adversarial
   smoke_golden: eval/smoke_golden.yaml # 5.6: ground truths + key facts for the 5 smoke queries
   golden_set: eval/golden_set.jsonl    # the questions themselves (5.4-5.5)
+  golden_patches: eval/golden_patches.yaml  # 6.9 golden-v2: scoring-only patches over the v1 sources
   # step 6.1 - retrieval layer (decision 6.0-B: no LLM, deterministic location metrics)
   retrieval_depth: 20  # ONE ranking per question; every @k is read from its prefix.
                        # Must be <= retrieval.hybrid.candidates, else hybrid top-k changes.

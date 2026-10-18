@@ -16,11 +16,9 @@ CFG = load_config()
 ITEMS = [json.loads(x) for x in (PROJECT_ROOT / CFG["eval"]["golden_set"]).open()]
 BY_ID = {g["id"]: g for g in ITEMS}
 REFUSAL = yaml.safe_load((PROJECT_ROOT / "prompts" / "v1.yaml").read_text())["refusal"]
-# Golden-v1 items whose ground truth does not match their own key-fact regex (fix in golden-v2).
-KNOWN_GOLDEN_ISSUES = {
-    "G041": "ground truth says 'whatever the type of entity', regex wants 'regardless of the type"
-    " of entity' (the source wording) -> a faithful paraphrase is scored as missing",
-}
+# Items whose ground truth does not match their own key-fact regex. golden-v1 had G041 (P63);
+# golden-v2 patch V2-10 fixed it -> empty. A new mismatch makes the oracle test fail.
+KNOWN_GOLDEN_ISSUES: dict[str, str] = {}
 
 
 def rec(answer, refused=False, cited=(1,), invalid=()):

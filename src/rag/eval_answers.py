@@ -109,7 +109,7 @@ def _stats(values: list[float]) -> dict[str, float]:
 def summarize(rows: list[dict]) -> dict:
     lat = {}
     for key in ["total_s", "retrieve_s", "llm_s", "prompt_tokens", "prefill_ms_per_tok"]:
-        for stat, value in _stats([r[key] for r in rows]).items():
+        for stat, value in _stats([r.get(key) for r in rows]).items():  # old runs: no prefill
             lat[f"{key.removesuffix('_s')}_{stat}"] = value
     return {
         "overall": aggregate_present(rows),

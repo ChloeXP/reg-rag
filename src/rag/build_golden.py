@@ -125,16 +125,46 @@ def assign_splits(items: list[dict], spec: dict) -> list[str]:
     return errors
 
 
+def apply_patches(items: list[dict], patches: dict) -> list[str]:
+    """Apply golden-vN patches in place; return errors. Each patch must hit exactly one item and
+    its `old` value must equal the current one (a patch never silently applies elsewhere)."""
+    errors = []
+    by_src = {it["src_id"]: it for it in items}
+    for p in patches["patches"]:
+        it = by_src.get(p["src_id"])
+        if it is None:
+            errors.append(f"{p['id']}: unknown src_id {p['src_id']}")
+            continue
+        if "fact" in p:
+            facts = [f for f in it["key_facts"] if f["fact"] == p["fact"]]
+            if len(facts) != 1 or facts[0]["pattern"] != p["old"]:
+                errors.append(f"{p['id']}: {p['src_id']} fact {p['fact']!r} / old pattern mismatch")
+                continue
+            facts[0]["pattern"] = p["new"]
+        elif "add_sections" in p:
+            hop = it["expected"][p["hop"]]
+            hop["sections"] = list(dict.fromkeys([*hop.get("sections", []), *p["add_sections"]]))
+        else:
+            errors.append(f"{p['id']}: unknown patch kind")
+            continue
+        it.setdefault("patches", []).append(p["id"])
+    return errors
+
+
 def build(cfg: dict) -> int:
     spec = load_spec(cfg)
     items = from_smoke(spec, cfg) + from_factual(cfg) + from_handwritten(cfg)
+    patches = yaml.safe_load((PROJECT_ROOT / cfg["eval"]["golden_patches"]).read_text("utf-8"))
+    patch_errors = apply_patches(items, patches)
+    for it in items:
+        it["golden_version"] = patches["version"]
     corpus = all_chunks(cfg)
     by_id = {c["chunk_id"]: c for c in corpus}
     work_langs: dict[str, set] = {}
     for c in corpus:
         work_langs.setdefault(c["work_id"], set()).add(c["language"])
-    errors, warnings = [], []
-    for it in items:  # same corpus checks as 5.5, for every source
+    errors, warnings = list(patch_errors), []
+    for it in items:  # same corpus checks as 5.5, for every source (patched values included)
         check_item({**it, "hid": it["src_id"]}, by_id, corpus, errors, warnings)
     dup = [k for k, n in Counter(it["src_id"] for it in items).items() if n > 1]
     if dup:
