@@ -11,9 +11,17 @@ from rag.config import load_config
 
 
 def generate(
-    prompt: str, cfg: dict, system: str | None = None, fmt: str | dict | None = None
+    prompt: str,
+    cfg: dict,
+    system: str | None = None,
+    fmt: str | dict | None = None,
+    num_predict: int | None = None,
 ) -> dict:
-    """Send one prompt to Ollama, return text + basic telemetry. fmt: "json" or a JSON schema."""
+    """Send one prompt to Ollama, return text + basic telemetry. fmt: "json" or a JSON schema.
+
+    num_predict caps the output tokens (step 7, P78: when a JSON schema fights the model's
+    preference, generation can loop until the timeout). done_reason "length" = hit the cap.
+    """
     llm = cfg["llm"]
     payload = {
         "model": llm["model"],
@@ -25,6 +33,8 @@ def generate(
         payload["system"] = system
     if fmt:
         payload["format"] = fmt  # step 5.3: golden-set drafts are JSON objects
+    if num_predict:
+        payload["options"]["num_predict"] = num_predict
 
     t0 = time.perf_counter()
     resp = httpx.post(f"{llm['base_url']}/api/generate", json=payload, timeout=llm["timeout_s"])
@@ -34,6 +44,7 @@ def generate(
     return {
         "text": data["response"].strip(),
         "model": data["model"],
+        "done_reason": data.get("done_reason"),  # "stop" | "length" (cap reached)
         "latency_s": round(time.perf_counter() - t0, 2),
         "prompt_tokens": data.get("prompt_eval_count"),
         "output_tokens": data.get("eval_count"),

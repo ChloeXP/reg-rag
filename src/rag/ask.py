@@ -1,7 +1,7 @@
 """Baseline RAG end to end (step 4.5): question -> retrieve -> prompt -> Ollama -> cited answer.
 
 Usage: uv run python -m rag.ask "Quelles sont les obligations de notification ... ?"
-       [--lang fr|en] [--top-k 5] [--model qwen2.5:7b] [--no-log]
+       [--lang fr|en] [--top-k 5] [--model qwen2.5:7b] [--prompt v2] [--no-log]
 Every call appends one JSON line to runs/ask_log.jsonl (decision 4.5-B: pointers + hashes,
 not copies of the texts, which already live in chunks.parquet).
 """
@@ -20,6 +20,12 @@ from rag.config import PROJECT_ROOT, load_config
 from rag.generate import build_prompt, load_prompt, parse_citations
 from rag.llm import generate
 from rag.retrieve import search
+from rag.structured_gen import run as run_structured
+
+# record key <- rag.llm.generate key (the same names as v1 records)
+TIMING = {"llm_s": "latency_s", "load_s": "load_s", "prefill_s": "prefill_s",
+          "decode_s": "decode_s", "prompt_tokens": "prompt_tokens",
+          "output_tokens": "output_tokens"}  # fmt: skip
 
 
 def git_commit() -> str:
@@ -48,8 +54,18 @@ def answer(
     inserts a poisoned passage for context-injection items before calling this)."""
     prompt = load_prompt(cfg)
     built = build_prompt(question, hits, prompt, cfg, lang)
-    out = generate(built["user"], cfg, system=built["system"])
-    checks = parse_citations(out["text"], hits, prompt)
+    if prompt["output"] == "json":  # step 7: JSON mode + validation + retry + fallback
+        checks = run_structured(built, hits, prompt, cfg)
+        attempts = checks["structured"]["attempts"]
+        # One answer may cost several LLM calls: timings and tokens are summed over attempts
+        # (prefill_s / prompt_tokens stays a valid per-token rate for the P67 cache check).
+        out = {k: _sum(a.get(src) for a in attempts) for k, src in TIMING.items()}
+        out["model"] = attempts[0]["model"]
+        out["text"] = checks.pop("answer")
+    else:
+        out = generate(built["user"], cfg, system=built["system"])
+        out["llm_s"] = out["latency_s"]
+        checks = parse_citations(out["text"], hits, prompt)
 
     r, llm = cfg["retrieval"], cfg["llm"]
     return {
@@ -81,13 +97,18 @@ def answer(
         "answer": out["text"],
         **checks,
         "retrieve_s": retrieve_s,
-        "llm_s": out["latency_s"],
+        "llm_s": out["llm_s"],
         "load_s": out["load_s"],
         "prefill_s": out["prefill_s"],
         "decode_s": out["decode_s"],
         "prompt_tokens": out["prompt_tokens"],
         "output_tokens": out["output_tokens"],
     }
+
+
+def _sum(values) -> float | int | None:
+    vals = [v for v in values if v is not None]
+    return round(sum(vals), 2) if vals else None
 
 
 def append_log(record: dict, cfg: dict) -> str:
@@ -102,11 +123,16 @@ def show(rec: dict) -> None:
     c = rec["config"]
     print(f"\n{rec['answer']}\n")
     for ref in rec["references"]:
-        n = "".join(f"[{i}]" for i in ref["n"])
+        fmt = "P{}" if "structured" in rec else "[{}]"  # v2 labels passages P1..Pk
+        n = "".join(fmt.format(i) for i in ref["n"])
         print(f"  {n} {ref['label']}" + (f" ({ref['pages']})" if ref["pages"] else ""))
     flags = [f"invalid citations {rec['invalid']}"] if rec["invalid"] else []
     flags += ["no citation"] if rec["uncited"] else []
     flags += [f"{rec['other_brackets']} non-numeric [..]"] if rec["other_brackets"] > 0 else []
+    if "structured" in rec:
+        st = rec["structured"]
+        flags += [f"structured {st['status']} after {st['n_attempts']} attempt(s), "
+                  f"first {st['first_status']}"] if st["status"] != "ok" else []  # fmt: skip
     for flag in flags:
         print(f"  WARNING: {flag}")
     print(
@@ -125,6 +151,7 @@ def main() -> None:
     ap.add_argument("--lang", choices=["fr", "en"], help="override answer-language detection")
     ap.add_argument("--top-k", type=int, help="override retrieval.top_k")
     ap.add_argument("--model", help="override llm.model, e.g. qwen2.5:7b")
+    ap.add_argument("--prompt", help="override llm.prompt_version, e.g. v2 (step 7)")
     ap.add_argument("--no-log", action="store_true", help="do not append to runs/ask_log.jsonl")
     args = ap.parse_args()
 
@@ -133,6 +160,8 @@ def main() -> None:
         cfg["retrieval"]["top_k"] = args.top_k
     if args.model:
         cfg["llm"]["model"] = args.model
+    if args.prompt:
+        cfg["llm"]["prompt_version"] = args.prompt
 
     rec = ask(" ".join(args.question), cfg, args.lang)
     show(rec)
