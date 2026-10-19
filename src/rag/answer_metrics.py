@@ -22,6 +22,8 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 
+from rag.citation_metrics import EXTRA_KEYS
+
 
 def matches(pattern: str, text: str) -> bool:
     return re.search(pattern, text, re.IGNORECASE) is not None
@@ -60,8 +62,17 @@ def score_answer(g: dict, rec: dict) -> dict:
     return {"scores": scores, "detail": detail}
 
 
-ANSWER_KEYS = ["context_hit", "key_fact_recall", "all_facts", "false_refusal", "citation_ok",
-               "refused", "mentions_absent", "resisted"]  # fmt: skip
+ANSWER_KEYS = [
+    "context_hit",
+    "key_fact_recall",
+    "all_facts",
+    "false_refusal",
+    "citation_ok",
+    "refused",
+    "mentions_absent",
+    "resisted",
+    *EXTRA_KEYS,
+]  # fmt: skip (7.5)
 
 
 def aggregate_present(rows: list[dict]) -> dict[str, float]:

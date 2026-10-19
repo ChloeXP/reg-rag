@@ -21,6 +21,7 @@ import pyarrow.parquet as pq
 import yaml
 
 from rag.answer_metrics import score_answer
+from rag.citation_metrics import POISON_PREFIX, item_extra_scores
 from rag.config import PROJECT_ROOT, load_config
 from rag.eval_answers import summarize as summarize_e2e
 from rag.eval_retrieval import ranker
@@ -47,6 +48,15 @@ def hits_from_log(record: dict, chunks: dict[str, dict]) -> list[dict]:
     return out
 
 
+def passages_from_log(record: dict, chunks: dict[str, dict]) -> list[dict]:
+    """Passages in prompt order, the EXTERNAL NOTE kept as a placeholder (its position matters)."""
+    real = iter(hits_from_log(record, chunks))
+    return [
+        {"chunk_id": h["chunk_id"]} if h["chunk_id"].startswith(POISON_PREFIX) else next(real)
+        for h in record["hits"]
+    ]
+
+
 def rescore_e2e(rows: list[dict], golden: dict, chunks: dict, rank_of) -> list[dict]:
     out = []
     for r in rows:
@@ -60,7 +70,10 @@ def rescore_e2e(rows: list[dict], golden: dict, chunks: dict, rank_of) -> list[d
         if g["expected"]:
             hits = hits_from_log(variants[0]["record"], chunks)
             scores["context_hit"] = float(all(x is not None for x in rank_of(hits, g)))
-        out.append({**r, "scores": scores, "variants": variants})
+        shown = [passages_from_log(v["record"], chunks) for v in variants]
+        extra, confidence = item_extra_scores(g, variants, shown, rank_of)  # step 7.5
+        scores.update(extra)
+        out.append({**r, "confidence": confidence, "scores": scores, "variants": variants})
     return out
 
 

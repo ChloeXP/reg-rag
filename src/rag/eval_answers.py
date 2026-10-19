@@ -25,6 +25,7 @@ import yaml
 
 from rag.answer_metrics import aggregate_present, grouped_present, score_answer
 from rag.ask import answer, git_commit
+from rag.citation_metrics import item_extra_scores
 from rag.config import PROJECT_ROOT, apply_overrides, load_config
 from rag.eval_retrieval import GROUP_FIELDS, ranker
 from rag.generate import load_prompt
@@ -70,20 +71,24 @@ def run_item(g: dict, cfg: dict, rank_of) -> dict:
     t0 = time.perf_counter()
     hits = search(g["question"], cfg)
     retrieve_s = round(time.perf_counter() - t0, 3)
-    variants = []
+    variants, shown = [], []
     for variant, passages in contexts(g, hits):
         rec = answer(g["question"], passages, cfg, lang=None, retrieve_s=retrieve_s)
         variants.append({"variant": variant, **score_answer(g, rec), "record": rec})
+        shown.append(passages)
     scores = dict(variants[0]["scores"])
     if len(variants) > 1:  # worst case over positions
         scores["resisted"] = min(v["scores"]["resisted"] for v in variants)
     if g["expected"]:  # were all expected locations among the passages the model saw?
         scores["context_hit"] = float(all(r is not None for r in rank_of(hits, g)))
+    extra, confidence = item_extra_scores(g, variants, shown, rank_of)  # step 7.5
+    scores.update(extra)
     llm_s = sum(v["record"]["llm_s"] for v in variants)
     return {
         "id": g["id"],
         **{f: g[f] for f in GROUP_FIELDS},
         "expected_behavior": g["expected_behavior"],
+        "confidence": confidence,  # v2: self-reported confidence of the first answer; v1: n/a
         "scores": scores,
         "variants": variants,
         "retrieve_s": retrieve_s,
@@ -111,9 +116,12 @@ def summarize(rows: list[dict]) -> dict:
     for key in ["total_s", "retrieve_s", "llm_s", "prompt_tokens", "prefill_ms_per_tok"]:
         for stat, value in _stats([r.get(key) for r in rows]).items():  # old runs: no prefill
             lat[f"{key.removesuffix('_s')}_{stat}"] = value
+    fields = ["type", *GROUP_FIELDS[1:]]
+    if all("confidence" in r for r in rows):  # step 7.5 rows (old runs: re-score to get it)
+        fields.append("confidence")  # calibration: does "high" mean more correct answers?
     return {
         "overall": aggregate_present(rows),
-        **{f"by_{f}": grouped_present(rows, f) for f in ["type", *GROUP_FIELDS[1:]]},
+        **{f"by_{f}": grouped_present(rows, f) for f in fields},
         "latency_s": lat,  # flat dict of numbers (rag.tracking logs it as metrics)
     }
 
@@ -133,6 +141,16 @@ def print_report(summary: dict, rows: list[dict]) -> None:
         if section.startswith("by_"):
             for value, agg in groups.items():
                 line(f"  {section[3:]}={value}", agg)
+    extra = ["cited_n", "cite_share", "cites_evidence", "cite_precision", "cites_poison",
+             "invalid_cite", "answerable_acc", "json_first_ok", "retried", "retry_success",
+             "fallback", "truncated"]  # fmt: skip
+    short = ["cited_n", "c_share", "c_evid", "c_prec", "c_poison", "invalid", "ans_acc",
+             "json_ok", "retried", "retry_ok", "fallbk", "trunc"]  # fmt: skip
+    print(f"\n{'citations / structured (7.5)':<30}{'n':>4}" + "".join(f"{c:>9}" for c in short))
+    for name, agg in [("ALL", summary["overall"]), *summary.get("by_confidence", {}).items()]:
+        label = name if name == "ALL" else f"  confidence={name}"
+        cells = [f"{agg[c]:>9.2f}" if c in agg else f"{'-':>9}" for c in extra]
+        print(f"{label:<30}{agg['n']:>4}" + "".join(cells))
     print("\nitems below full marks:")
     for r in rows:
         s, v0 = r["scores"], r["variants"][0]
