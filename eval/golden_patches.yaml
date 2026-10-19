@@ -6,7 +6,14 @@
 # Audit method: ALL non-refused answers of 5 e2e runs (3b dense/rerank5/rerank3, 7b rerank/
 # dense = 155 answers) were checked both ways: missed facts written differently (false
 # negatives) AND generic patterns matching the wrong thing (false positives, P64).
-version: v2
+# golden-v3 (step 7.9): same rules, second symmetric audit after step 7 (decision 7.4-C).
+# Audit: ALL non-refused, non-fallback answers to the 31 dev `answer` items of 3 e2e runs on the
+# SAME retrieved passages - v1 (free text, rerank-top5-g2), v2 and v3 (JSON, after the 7.8 policy
+# replay) = 93 answers: every unmatched (item, fact) read with related stems (false negatives)
+# and every match read in context (false positives); plus every key-fact pattern tested against
+# its own QUESTION (a pattern the question already contains can be satisfied by echoing it).
+# Patches are applied in order on top of the v2 ones (V3 `old` = the V2 `new` where both exist).
+version: v3
 patches:
   - id: V2-01
     src_id: S08
@@ -74,3 +81,39 @@ patches:
     add_sections:
       - 'Juin 2020 Gouvernance des algorithmes d’intelligence artificielle dans le secteur financier Document de réflexion AUTEURS Laurent Dupont, Olivier Fliche, Su Yang Pôle Fintech-Innovation, ACPR > QUESTION 3 : DÉFINITION DES NIVEAUX D’EXPLICATION'
     reason: 'P73: both facts of hop 2 (observation, réplication) are stated in ACPR "QUESTION 3 : DÉFINITION DES NIVEAUX D''EXPLICATION" (card 0094), same work; checked against the text, not inferred'
+  - id: V3-01
+    src_id: Q3
+    fact: CET1 4,5 %
+    old: '(?<!et\s)(?<!and\s)(?<![-–])4[.,]5\W{0,3}%'
+    new: '(?<!et\s)(?<!and\s)(?<!à\s)(?<!to\s)(?<![-–])4[.,]5\W{0,3}%'
+    reason: 'P80 false positive (v2, v3): transitional range "de 4 % à 4,5 %" (Article 465) counted as the Article 92 minimum; V2-08 excluded et / and / dash but not à / to'
+  - id: V3-02
+    src_id: Q3
+    fact: Tier 1 6 %
+    old: '(?<!et\s)(?<!and\s)(?<![-–])\b6\W{0,3}%'
+    new: '(?<!et\s)(?<!and\s)(?<!à\s)(?<!to\s)(?<![-–])\b6\W{0,3}%'
+    reason: 'P80 false positive (v2, v3): "de 5,5 % à 6 %" (Article 465 range, attributed to the wrong ratio in both answers)'
+  - id: V3-03
+    src_id: H06
+    fact: not directly to IRB models
+    old: '(IRB|modèles?\s+NI|notations?\s+internes?)'
+    new: '(not\s+apply\s+directly|not\s+directly|does\s+not\s+apply|pas\s+directement|ne\s+s.appliqu\w*\s+pas|ne\s+(devrai\w*|doiv\w*)\s+pas\s+être\s+consid\w+\s+comme\s+(des\s+systèmes\s+d.IA\s+)?à\s+haut\s+risque|should\s+not\s+be\s+considered\s+(as\s+)?high[-\s]risk)'
+    reason: 'False positive by question echo: the old pattern matches "modèles NI" in the QUESTION itself; v1 got the point while stating the opposite ("cela ne signifie pas que les modèles NI ... ne peuvent pas être classés comme à haut risque"). New pattern requires the negation; evidence eba_ml_irb_report 0024 "does not apply directly to IRB models"'
+  - id: V3-04
+    src_id: S22
+    fact: envisagé au sein de l'ACPR
+    old: '(au\s+sein\s+de\s+l.ACPR|within\s+the\s+ACPR)'
+    new: '(au\s+sein\s+de\s+l.ACPR|within\s+the\s+ACPR|chez\s+le\s+superviseur)'
+    reason: 'False negative (v1, v2, v3): "formés soit chez le superviseur lui-même" (v1), "chez le superviseur (ACPR)" (v2, v3) = the source''s "chez le superviseur - ce qui est envisagé au sein de l''ACPR"'
+  - id: V3-05
+    src_id: S18
+    fact: approuvé par l'autorité compétente
+    old: '(approuvé|approved)'
+    new: '(approuvé|approved|accord\s+(de\s+l.autorité|des\s+autorités)|approval\s+of\s+the\s+competent)'
+    reason: 'False negative (v2): "elle doit obtenir l''accord des autorités de contrôle" = approval by the competent authority'
+  - id: V3-06
+    src_id: S20
+    fact: méthodes explicatives
+    old: '(méthodes\s+(explicatives|d.explicabilité)|(explanat\w*|explainab\w*)\s+methods)'
+    new: '(méthodes\s+(explicatives|d.explicabilité)|(explanat\w*|explainab\w*)\s+(methods|techniques))'
+    reason: 'False negative, BORDERLINE (v3): "empirical methods that use explainability techniques" - the explanatory-methods idea is there, worded as techniques'
