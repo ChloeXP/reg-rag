@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import string
 
@@ -11,6 +12,11 @@ import yaml
 from rag.config import PROJECT_ROOT
 
 PLACEHOLDERS = {"context", "question", "answer_language"}
+# Step 7: a prompt declares its output mode. "text" (v1, default) = free text with [n] citations;
+# "json" (v2+) = a ModelAnswer object (rag.structured), with a retry template for invalid output.
+OUTPUTS = {"text", "json"}
+RETRY_PLACEHOLDERS = {"previous", "errors"}
+DEFAULT_PASSAGE_LABEL = "[{n}]"  # v1; v2 uses "P{n}" (P38: no clash with "[52]" in the text)
 # Context header written by chunking.unit_header: "[DORA · Article 19 Title] body..."
 HEADER = re.compile(r"^\[([^\[\]\n]+)\]\s*")
 MAX_LABEL = 120  # some headers carry a whole title page (ACPR: 317 chars)
@@ -63,7 +69,27 @@ def load_prompt(cfg: dict, version: str | None = None) -> dict:
         if f'"{sentence}"' not in prompt["system"]:
             raise ValueError(f"{path.name}: refusal[{lang}] not quoted verbatim in system")
 
-    digest = hashlib.sha256((prompt["system"] + "\x00" + prompt["user"]).encode()).hexdigest()
+    output = prompt.setdefault("output", "text")
+    if output not in OUTPUTS:
+        raise ValueError(f"{path.name}: output {output!r} not in {sorted(OUTPUTS)}")
+    label = prompt.setdefault("passage_label", DEFAULT_PASSAGE_LABEL)
+    if _fields(label) != {"n"}:
+        raise ValueError(f"{path.name}: passage_label must contain exactly {{n}}")
+
+    # The hash covers everything the model sees. v1 keeps its original recipe (system + user),
+    # so its logged hash (7de0951c1af7) stays valid. For json prompts the retry template and the
+    # JSON schema sent as `format` are part of the prompt too: changing either changes the hash.
+    parts = [prompt["system"], prompt["user"]]
+    if label != DEFAULT_PASSAGE_LABEL:
+        parts.append(label)
+    if output == "json":
+        if "retry" not in prompt or _fields(prompt["retry"]) != RETRY_PLACEHOLDERS:
+            raise ValueError(f"{path.name}: json output needs a retry template with "
+                             f"placeholders {sorted(RETRY_PLACEHOLDERS)}")  # fmt: skip
+        from rag.structured import model_schema  # local import: structured imports this module
+
+        parts += [prompt["retry"], json.dumps(model_schema(), sort_keys=True)]
+    digest = hashlib.sha256("\x00".join(parts).encode()).hexdigest()
     return {**prompt, "sha256": digest[:12]}
 
 
@@ -98,15 +124,16 @@ def split_passage(hit: dict) -> tuple[str, str]:
     return label, body.strip()
 
 
-def format_context(hits: list[dict]) -> str:
+def format_context(hits: list[dict], passage_label: str = DEFAULT_PASSAGE_LABEL) -> str:
     """Numbered passages: "[1] DORA — Article 19 ...\n<body>", separated by blank lines.
 
-    Number n = position in `hits` (1-based); parse_citations maps [n] back to hits[n-1].
+    Number n = position in `hits` (1-based); parse_citations maps [n] back to hits[n-1]
+    (v2: "P1 DORA — ..." and rag.structured maps "P<n>" back the same way).
     """
     blocks = []
     for n, hit in enumerate(hits, start=1):
         label, body = split_passage(hit)
-        blocks.append(f"[{n}] {label}\n{body}")
+        blocks.append(f"{passage_label.format(n=n)} {label}\n{body}")
     return "\n\n".join(blocks)
 
 
@@ -129,8 +156,9 @@ def build_prompt(question: str, hits: list[dict], prompt: dict, cfg: dict, lang:
     lang = lang or detect_language(question, cfg["generation"]["default_language"])
     if lang not in LANGUAGES:
         raise ValueError(f"unsupported language {lang!r}, expected one of {sorted(LANGUAGES)}")
+    context = format_context(hits, prompt.get("passage_label", DEFAULT_PASSAGE_LABEL))
     user = prompt["user"].format(
-        context=format_context(hits), question=question.strip(), answer_language=LANGUAGES[lang]
+        context=context, question=question.strip(), answer_language=LANGUAGES[lang]
     )
     return {"system": prompt["system"], "user": user, "language": lang}
 

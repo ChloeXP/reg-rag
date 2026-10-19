@@ -48,10 +48,14 @@ class ModelAnswer(BaseModel):
 
     model_config = ConfigDict(extra="forbid", strict=True)
 
-    answer: str = Field(min_length=1, max_length=MAX_ANSWER_CHARS)
+    # Field order = generation order (Ollama follows the schema order, probe 7.1).
+    # Decision 7.2-C: evidence -> verdict -> answer. The model first picks the passages, then
+    # judges answerability, then writes an answer anchored on what it just picked (P76: with
+    # `answerable` last it was filled after the fact and contradicted the answer 2 times in 3).
     citations: list[PassageId] = Field(max_length=MAX_CITATIONS)
-    confidence: Confidence
     answerable: bool
+    answer: str = Field(min_length=1, max_length=MAX_ANSWER_CHARS)
+    confidence: Confidence
 
     @field_validator("answer")
     @classmethod

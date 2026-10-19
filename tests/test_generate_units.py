@@ -129,3 +129,38 @@ def test_references_merge_chunks_of_the_same_article():
         ([1, 2], "19", "p. 41"),
         ([3], "17", "p. 39-40"),
     ]
+
+
+# --- step 7.2: prompt v2 (structured output) ---------------------------------------------------
+V2 = load_prompt(CFG, "v2")
+
+
+def test_v1_hash_unchanged_by_step7_loader():
+    assert PROMPT["sha256"] == "7de0951c1af7"  # logged in every step 4-6 run: must stay valid
+    assert (PROMPT["output"], PROMPT["passage_label"]) == ("text", "[{n}]")
+
+
+def test_prompt_v2_is_json_with_p_labels():
+    assert (V2["version"], V2["output"], V2["passage_label"]) == ("v2", "json", "P{n}")
+    assert V2["sha256"] != PROMPT["sha256"] and V2["refusal"] == PROMPT["refusal"]
+    out = build_prompt("Quel délai ?", [hit(), hit()], V2, CFG)
+    assert "P1 DORA — Article 19" in out["user"] and "\n\nP2 DORA" in out["user"]
+    assert "[1]" not in out["user"] and "{" not in out["user"]
+    assert out["user"].endswith("Answer in French. Return only the JSON object.\n")
+
+
+def test_v2_hash_covers_the_json_schema(monkeypatch):
+    import rag.structured
+
+    monkeypatch.setattr(rag.structured, "model_schema", lambda: {"type": "object"})
+    assert load_prompt(CFG, "v2")["sha256"] != V2["sha256"]
+
+
+def test_json_prompt_needs_a_retry_template(tmp_path):
+    bad = {k: v for k, v in V2.items() if k not in ("sha256", "retry")}
+    bad["version"] = "v9"
+    (tmp_path / "v9.yaml").write_text(yaml.safe_dump(bad, allow_unicode=True), encoding="utf-8")
+    cfg = copy.deepcopy(CFG)
+    cfg["paths"]["prompts_dir"] = str(tmp_path)
+    with pytest.raises(ValueError, match="retry template"):
+        load_prompt(cfg, "v9")

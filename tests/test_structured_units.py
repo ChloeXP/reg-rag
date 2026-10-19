@@ -133,4 +133,4 @@ def test_schema_shape():
     assert s["properties"]["citations"]["items"]["pattern"] == r"^P[1-9][0-9]?$"
     assert s["properties"]["confidence"]["enum"] == ["high", "medium", "low"]
     assert s["properties"]["answerable"]["type"] == "boolean"
-    assert list(s["properties"]) == ["answer", "citations", "confidence", "answerable"]
+    assert list(s["properties"]) == ["citations", "answerable", "answer", "confidence"]  # 7.2-C
