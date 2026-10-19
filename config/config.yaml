@@ -22,7 +22,8 @@ llm:
   timeout_s: 180
   prompt_version: v1                 # prompts/<version>.yaml (step 4.2); logged with every answer
   structured:                        # step 7: only used by prompts with `output: json` (v2+)
-    num_predict: 640                 # output token cap (P78); ~6 sentences + JSON need < 400
+    num_predict: 1024                # output token cap (P78). 640 -> 1024 in 7.7: v3 allows
+                                     # 3000-char answers (~750 tokens); v2 never exceeded 372
     max_retries: 1                   # framework: retry once with the errors fed back, then fallback
     max_previous_chars: 1500         # how much of the rejected output is echoed in the retry
 

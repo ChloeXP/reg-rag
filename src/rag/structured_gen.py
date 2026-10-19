@@ -34,7 +34,7 @@ FALLBACK = {
 def check(raw: str, done_reason: str | None, hits: list[dict], prompt: dict):
     """One attempt -> (status, errors for the retry prompt, ModelAnswer | None, invalid ids)."""
     try:
-        ma = parse(raw)
+        ma = parse(raw, prompt["answer_max_chars"])
     except ValidationError as err:
         if done_reason == "length":
             return "truncated", ["the output was cut off: write a shorter answer"], None, []
@@ -65,7 +65,7 @@ def retry_user(user: str, prompt: dict, raw: str, errors: list[str], max_chars: 
 def run(built: dict, hits: list[dict], prompt: dict, cfg: dict) -> dict:
     """built = rag.generate.build_prompt(...) -> structured result (see module docstring)."""
     sc = cfg["llm"]["structured"]
-    schema = model_schema()
+    schema = model_schema(prompt["answer_max_chars"])
     attempts: list[dict] = []
     user = built["user"]
     final: ModelAnswer | None = None

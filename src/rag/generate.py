@@ -86,9 +86,12 @@ def load_prompt(cfg: dict, version: str | None = None) -> dict:
         if "retry" not in prompt or _fields(prompt["retry"]) != RETRY_PLACEHOLDERS:
             raise ValueError(f"{path.name}: json output needs a retry template with "
                              f"placeholders {sorted(RETRY_PLACEHOLDERS)}")  # fmt: skip
-        from rag.structured import model_schema  # local import: structured imports this module
+        from rag.structured import MAX_ANSWER_CHARS, model_schema  # structured imports this module
 
-        parts += [prompt["retry"], json.dumps(model_schema(), sort_keys=True)]
+        limit = prompt.setdefault("answer_max_chars", MAX_ANSWER_CHARS)
+        if not isinstance(limit, int) or limit < 100:
+            raise ValueError(f"{path.name}: answer_max_chars must be an integer >= 100")
+        parts += [prompt["retry"], json.dumps(model_schema(limit), sort_keys=True)]
     digest = hashlib.sha256("\x00".join(parts).encode()).hexdigest()
     return {**prompt, "sha256": digest[:12]}
 

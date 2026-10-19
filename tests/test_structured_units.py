@@ -134,3 +134,14 @@ def test_schema_shape():
     assert s["properties"]["confidence"]["enum"] == ["high", "medium", "low"]
     assert s["properties"]["answerable"]["type"] == "boolean"
     assert list(s["properties"]) == ["citations", "answerable", "answer", "confidence"]  # 7.2-C
+
+
+# --- step 7.7: per-prompt answer length -----------------------------------------------------------
+def test_answer_limit_is_a_parameter_of_schema_and_validation():
+    assert model_schema()["properties"]["answer"]["maxLength"] == 2000  # v2 unchanged
+    assert model_schema(3000)["properties"]["answer"]["maxLength"] == 3000
+    long = raw(answer="x" * 2500)
+    errors_of(long)  # default limit 2000
+    assert len(parse(long, 3000).answer) == 2500
+    with pytest.raises(ValidationError, match="too long"):
+        parse(raw(answer="x" * 3001), 3000)

@@ -19,6 +19,7 @@ from pydantic import (
     ConfigDict,
     Field,
     ValidationError,
+    ValidationInfo,
     field_validator,
     model_validator,
 )
@@ -26,7 +27,9 @@ from pydantic import (
 from rag.generate import split_passage
 
 PASSAGE_ID = r"^P[1-9][0-9]?$"  # "P1".."P99"; the "P" avoids clashes with "[52]" in the text (P38)
-MAX_ANSWER_CHARS = 2000  # ~6 sentences need < 1000; a longer answer is runaway generation
+MAX_ANSWER_CHARS = 2000  # default (v2): ~6 sentences need < 1000; longer = runaway generation
+# A prompt may set its own `answer_max_chars` (v3: complete lists, P83). The limit is passed to
+# the schema and to validation, so v2's schema - hence its logged hash - stays byte-identical.
 MAX_CITATIONS = 10
 MAX_ERROR_LINES = 3  # retry feedback stays short: a 3b model drowns in long error dumps
 
@@ -54,14 +57,17 @@ class ModelAnswer(BaseModel):
     # `answerable` last it was filled after the fact and contradicted the answer 2 times in 3).
     citations: list[PassageId] = Field(max_length=MAX_CITATIONS)
     answerable: bool
-    answer: str = Field(min_length=1, max_length=MAX_ANSWER_CHARS)
+    answer: str = Field(min_length=1)  # max length: per prompt, see _length / model_schema
     confidence: Confidence
 
     @field_validator("answer")
     @classmethod
-    def _not_blank(cls, v: str) -> str:
+    def _length(cls, v: str, info: ValidationInfo) -> str:
         if not v.strip():
             raise ValueError("answer is blank")
+        limit = (info.context or {}).get("max_answer_chars", MAX_ANSWER_CHARS)
+        if len(v) > limit:
+            raise ValueError(f"answer is too long ({len(v)} characters, maximum {limit})")
         return v.strip()
 
     @field_validator("citations")
@@ -83,7 +89,7 @@ class ModelAnswer(BaseModel):
         return self
 
 
-def model_schema() -> dict:
+def model_schema(max_answer_chars: int = MAX_ANSWER_CHARS) -> dict:
     """JSON schema for Ollama `format` (constrained decoding of the shape, not of the truth).
 
     The class docstring is dropped: it is for developers, and editing it must not change the
@@ -91,12 +97,13 @@ def model_schema() -> dict:
     """
     schema = ModelAnswer.model_json_schema()
     schema.pop("description", None)
+    schema["properties"]["answer"]["maxLength"] = max_answer_chars
     return schema
 
 
-def parse(raw: str) -> ModelAnswer:
+def parse(raw: str, max_answer_chars: int = MAX_ANSWER_CHARS) -> ModelAnswer:
     """Raw LLM text -> ModelAnswer. Invalid JSON is a ValidationError too (type json_invalid)."""
-    return ModelAnswer.model_validate_json(raw)
+    return ModelAnswer.model_validate_json(raw, context={"max_answer_chars": max_answer_chars})
 
 
 def error_lines(err: ValidationError, limit: int = MAX_ERROR_LINES) -> list[str]:

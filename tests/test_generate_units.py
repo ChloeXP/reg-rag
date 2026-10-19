@@ -152,7 +152,7 @@ def test_prompt_v2_is_json_with_p_labels():
 def test_v2_hash_covers_the_json_schema(monkeypatch):
     import rag.structured
 
-    monkeypatch.setattr(rag.structured, "model_schema", lambda: {"type": "object"})
+    monkeypatch.setattr(rag.structured, "model_schema", lambda *_: {"type": "object"})
     assert load_prompt(CFG, "v2")["sha256"] != V2["sha256"]
 
 
@@ -164,3 +164,18 @@ def test_json_prompt_needs_a_retry_template(tmp_path):
     cfg["paths"]["prompts_dir"] = str(tmp_path)
     with pytest.raises(ValueError, match="retry template"):
         load_prompt(cfg, "v9")
+
+
+# --- step 7.7: prompt v3 (completeness) -------------------------------------------------------
+def test_v2_hash_unchanged_by_the_per_prompt_answer_limit():
+    assert V2["sha256"] == "a3acff93231c"  # logged in the 7.4 / 7.6 runs: must stay valid
+    assert V2["answer_max_chars"] == 2000
+
+
+def test_prompt_v3_differs_from_v2_only_where_declared():
+    v3 = load_prompt(CFG, "v3")
+    assert (v3["version"], v3["output"], v3["answer_max_chars"]) == ("v3", "json", 3000)
+    assert v3["sha256"] not in (V2["sha256"], PROMPT["sha256"])
+    same = ["refusal", "user", "retry", "passage_label"]
+    assert all(v3[k] == V2[k] for k in same)
+    assert "list them all" in v3["system"] and "at most 6 sentences" not in v3["system"]
