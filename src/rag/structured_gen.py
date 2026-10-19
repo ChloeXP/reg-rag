@@ -11,6 +11,16 @@ Attempt status (decision 7.3-B: grounding errors are retried too):
                   answerable=true with the refusal sentence as the answer (P76)
   grounding_error well-formed id that is not a passage ("P6" with 5 passages, P65)
 Final status: ok (first attempt) | retried_ok | fallback (no valid attempt; nothing invented).
+
+Policy (config llm.structured.policy, step 7.8 - measured in 7.6 / 7.7, P82 / P84):
+  length             reject: answer longer than the prompt's answer_max_chars = schema_error
+                     flag:   a COMPLETE JSON answer is kept whatever its length (runaway is caught
+                             by num_predict -> truncated); attempts[].over_length records it
+  invalid_citations  reject: any non-existent id = grounding_error (7.3-B)
+                     drop:   if at least one cited id exists, the others are removed and the
+                             answer is kept (attempts[].dropped); no valid id left = error
+The defaults (reject / reject) reproduce the 7.3 behaviour; the first attempt's invalid ids are
+always recorded (invalid_cite metric), whatever the policy.
 """
 
 from __future__ import annotations
@@ -31,25 +41,47 @@ FALLBACK = {
 }
 
 
-def check(raw: str, done_reason: str | None, hits: list[dict], prompt: dict):
-    """One attempt -> (status, errors for the retry prompt, ModelAnswer | None, invalid ids)."""
+DEFAULT_POLICY = {"length": "reject", "invalid_citations": "reject"}  # = 7.3 behaviour
+POLICIES = {"length": {"reject", "flag"}, "invalid_citations": {"reject", "drop"}}
+
+
+def policy_of(cfg: dict) -> dict:
+    policy = {**DEFAULT_POLICY, **cfg["llm"]["structured"].get("policy", {})}
+    for key, value in policy.items():
+        if value not in POLICIES.get(key, set()):
+            raise ValueError(f"llm.structured.policy.{key}={value!r}: expected {POLICIES[key]}")
+    return policy
+
+
+def check(raw: str, done_reason: str | None, hits: list[dict], prompt: dict, policy=None):
+    """One attempt -> (status, errors for the retry, ModelAnswer | None, invalid ids, notes).
+
+    notes: {"dropped": [...], "over_length": True} when the policy kept an answer anyway.
+    """
+    policy = policy or DEFAULT_POLICY
+    limit = prompt["answer_max_chars"]
     try:
-        ma = parse(raw, prompt["answer_max_chars"])
+        ma = parse(raw, limit if policy["length"] == "reject" else None)
     except ValidationError as err:
         if done_reason == "length":
-            return "truncated", ["the output was cut off: write a shorter answer"], None, []
-        return "schema_error", error_lines(err), None, []
+            return "truncated", ["the output was cut off: write a shorter answer"], None, [], {}
+        return "schema_error", error_lines(err), None, [], {}
+    notes: dict = {"over_length": True} if len(ma.answer) > limit else {}
     refusals = {_norm(r) for r in prompt["refusal"].values()}
     if ma.answerable and _norm(ma.answer) in refusals:
         msg = ("answer is the refusal sentence but answerable is true: if no passage contains "
                "the answer, set answerable to false and citations to []")  # fmt: skip
-        return "schema_error", [msg], ma, []
+        return "schema_error", [msg], ma, [], notes
     _, invalid = to_answer(ma, hits)
     if invalid:
+        if policy["invalid_citations"] == "drop" and len(invalid) < len(ma.citations):
+            kept = [c for c in ma.citations if c not in invalid]
+            return "ok", [], ma.model_copy(update={"citations": kept}), invalid, {
+                **notes, "dropped": invalid}  # fmt: skip
         msg = (f"citations {invalid} do not exist: the passages are P1 to P{len(hits)}; "
                "cite only those ids")  # fmt: skip
-        return "grounding_error", [msg], ma, invalid
-    return "ok", [], ma, []
+        return "grounding_error", [msg], ma, invalid, notes
+    return "ok", [], ma, [], notes
 
 
 def retry_user(user: str, prompt: dict, raw: str, errors: list[str], max_chars: int) -> str:
@@ -65,21 +97,26 @@ def retry_user(user: str, prompt: dict, raw: str, errors: list[str], max_chars: 
 def run(built: dict, hits: list[dict], prompt: dict, cfg: dict) -> dict:
     """built = rag.generate.build_prompt(...) -> structured result (see module docstring)."""
     sc = cfg["llm"]["structured"]
+    policy = policy_of(cfg)
     schema = model_schema(prompt["answer_max_chars"])
     attempts: list[dict] = []
     user = built["user"]
     final: ModelAnswer | None = None
     for i in range(1 + sc["max_retries"]):
         out = generate(user, cfg, system=built["system"], fmt=schema, num_predict=sc["num_predict"])
-        status, errors, ma, invalid = check(out["text"], out.get("done_reason"), hits, prompt)
+        status, errors, ma, invalid, notes = check(
+            out["text"], out.get("done_reason"), hits, prompt, policy
+        )
         telemetry = {k: v for k, v in out.items() if k != "text"}
         attempts.append({"attempt": i + 1, "status": status, "errors": errors, "invalid": invalid,
-                         "raw": out["text"], **telemetry})  # fmt: skip
+                         **notes, "raw": out["text"], **telemetry})  # fmt: skip
         if status == "ok":
             final = ma
             break
         user = retry_user(built["user"], prompt, out["text"], errors, sc["max_previous_chars"])
-    return result(final, attempts, hits, prompt, built["language"])
+    out = result(final, attempts, hits, prompt, built["language"])
+    out["structured"]["policy"] = policy
+    return out
 
 
 def result(final, attempts, hits, prompt, lang) -> dict:
@@ -112,6 +149,9 @@ def result(final, attempts, hits, prompt, lang) -> dict:
             "n_attempts": len(attempts),
             "first_status": attempts[0]["status"],
             "first_invalid": attempts[0]["invalid"],
+            "policy": None,  # filled by run() / replay
+            "dropped": attempts[-1].get("dropped", []) if final is not None else [],
+            "over_length": bool(attempts[-1].get("over_length")) if final is not None else False,
             "answerable": None if final is None else final.answerable,
             "confidence": None if final is None else final.confidence,
             "api_answer": api,  # rag.structured.Answer (step 9 response body)

@@ -66,7 +66,7 @@ class ModelAnswer(BaseModel):
         if not v.strip():
             raise ValueError("answer is blank")
         limit = (info.context or {}).get("max_answer_chars", MAX_ANSWER_CHARS)
-        if len(v) > limit:
+        if limit is not None and len(v) > limit:  # None: no limit (policy length=flag, 7.8)
             raise ValueError(f"answer is too long ({len(v)} characters, maximum {limit})")
         return v.strip()
 
@@ -101,7 +101,7 @@ def model_schema(max_answer_chars: int = MAX_ANSWER_CHARS) -> dict:
     return schema
 
 
-def parse(raw: str, max_answer_chars: int = MAX_ANSWER_CHARS) -> ModelAnswer:
+def parse(raw: str, max_answer_chars: int | None = MAX_ANSWER_CHARS) -> ModelAnswer:
     """Raw LLM text -> ModelAnswer. Invalid JSON is a ValidationError too (type json_invalid)."""
     return ModelAnswer.model_validate_json(raw, context={"max_answer_chars": max_answer_chars})
 

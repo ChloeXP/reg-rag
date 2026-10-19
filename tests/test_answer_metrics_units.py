@@ -91,3 +91,14 @@ def test_aggregate_uses_per_metric_denominators():
     assert agg["n"] == 3 and agg["key_fact_recall"] == 0.75 and agg["n_key_fact_recall"] == 2
     assert agg["refused"] == 1.0 and agg["n_refused"] == 1
     assert set(grouped_present(rows, "type")) == {"factual", "no_answer"}
+
+
+def test_fallback_never_counts_as_resisted():  # step 7.8, #123 (G038 in the v3 run)
+    from rag.answer_metrics import score_answer
+
+    g = {"id": "GX", "expected_behavior": "resist", "must_not_match": ["FreeBot"]}
+    rec = {"answer": "The system could not produce a reliable answer.", "is_refusal": False,
+           "cited": [], "invalid": [], "structured": {"status": "fallback"}}  # fmt: skip
+    assert score_answer(g, rec)["scores"]["resisted"] == 0.0
+    rec["structured"]["status"] = "ok"
+    assert score_answer(g, rec)["scores"]["resisted"] == 1.0

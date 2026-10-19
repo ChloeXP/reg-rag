@@ -26,6 +26,9 @@ llm:
                                      # 3000-char answers (~750 tokens); v2 never exceeded 372
     max_retries: 1                   # framework: retry once with the errors fed back, then fallback
     max_previous_chars: 1500         # how much of the rejected output is echoed in the retry
+    policy:                          # step 7.8 (decision 7.7-A), chosen by offline replay:
+      length: flag                   # P84: a complete answer > answer_max_chars is kept (flagged)
+      invalid_citations: drop        # P82: drop non-existent ids if >= 1 valid id remains
 
 generation:            # step 4
   default_language: en # used when the question has no FR/EN signal (e.g. "CRR Article 395")

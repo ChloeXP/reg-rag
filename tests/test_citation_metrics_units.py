@@ -82,7 +82,8 @@ def test_cites_poison():
 def test_structured_scores():
     assert structured_scores(rec()) == {}  # v1
     ok = structured_scores(rec(structured=st()))
-    assert ok == {"json_first_ok": 1.0, "retried": 0.0, "fallback": 0.0, "truncated": 0.0}
+    assert ok == {"json_first_ok": 1.0, "retried": 0.0, "fallback": 0.0, "truncated": 0.0,
+                  "dropped_invalid": 0.0, "over_length": 0.0}  # fmt: skip
     fixed = structured_scores(rec(structured=st("retried_ok", ("truncated", "ok"))))
     assert fixed["retry_success"] == 1.0 and fixed["truncated"] == 1.0
     assert fixed["json_first_ok"] == 0.0

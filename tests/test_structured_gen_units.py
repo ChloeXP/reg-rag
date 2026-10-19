@@ -52,6 +52,15 @@ def run(cfg=CFG):
     return sg.run(BUILT, HITS, V2, cfg)
 
 
+def with_policy(**policy):
+    cfg = copy.deepcopy(CFG)
+    cfg["llm"]["structured"]["policy"] = policy
+    return cfg
+
+
+STRICT = with_policy(length="reject", invalid_citations="reject")  # the 7.3 behaviour
+
+
 # --- first attempt valid -----------------------------------------------------------------------
 def test_first_attempt_ok_maps_to_v1_fields(llm):
     script, calls = llm
@@ -96,7 +105,7 @@ def test_schema_error_is_retried_with_the_errors(llm):
 def test_hallucinated_citation_is_retried_and_counted(llm):  # decision 7.3-B, P65
     script, calls = llm
     script += [(js(citations=["P2", "P6"]), "stop"), (js(citations=["P2"]), "stop")]
-    r = run()
+    r = run(STRICT)
     st = r["structured"]
     assert (st["status"], st["first_status"], st["first_invalid"]) == (
         "retried_ok", "grounding_error", ["P6"])  # fmt: skip
@@ -165,3 +174,45 @@ def test_ask_answer_v2_record_keeps_v1_fields_and_is_scoreable(llm, monkeypatch)
          "key_facts": [{"fact": "entités", "pattern": r"entit\w+ financi"}]}  # fmt: skip
     assert score_answer(g, rec)["scores"] == {"key_fact_recall": 1.0, "all_facts": 1.0,
                                               "false_refusal": 0.0, "citation_ok": 1.0}  # fmt: skip
+
+
+# --- step 7.8: policy (offline-replayable) -------------------------------------------------------
+def test_default_config_policy_is_the_measured_one():
+    assert sg.policy_of(CFG) == {"length": "flag", "invalid_citations": "drop"}
+    assert sg.policy_of({"llm": {"structured": {}}}) == sg.DEFAULT_POLICY  # old run configs
+    with pytest.raises(ValueError):
+        sg.policy_of(with_policy(length="maybe"))
+
+
+def test_drop_policy_keeps_the_answer_and_records_the_dropped_id(llm):  # P82 (G018)
+    script, calls = llm
+    script.append((js(citations=["P1", "P13"]), "stop"))
+    r = run()
+    st = r["structured"]
+    assert (st["status"], st["n_attempts"], st["dropped"]) == ("ok", 1, ["P13"])
+    assert st["first_invalid"] == ["P13"] and r["cited"] == [1] and len(calls) == 1
+    assert st["policy"] == {"length": "flag", "invalid_citations": "drop"}
+
+
+def test_drop_policy_still_rejects_when_no_valid_id_remains(llm):
+    script, _ = llm
+    script += [(js(citations=["P9"]), "stop"), (js(citations=["P7"]), "stop")]
+    st = run()["structured"]
+    assert st["status"] == "fallback" and st["first_status"] == "grounding_error"
+
+
+def test_length_flag_keeps_a_complete_long_answer(llm):  # P84 (G002)
+    script, _ = llm
+    script.append((js(answer="x" * 2500), "stop"))  # v2 limit 2000
+    st = run()["structured"]
+    assert (st["status"], st["over_length"]) == ("ok", True)
+    script.append((js(answer="x" * 2500), "stop"))
+    script.append((js(answer="x" * 2500), "stop"))
+    assert run(STRICT)["structured"]["status"] == "fallback"
+
+
+def test_truncation_is_still_a_failure_under_the_flag_policy(llm):  # P85
+    script, _ = llm
+    script += [(js(answer="x" * 2500)[:-30], "length"), (js()[:40], "length")]
+    st = run()["structured"]
+    assert st["status"] == "fallback" and st["first_status"] == "truncated"

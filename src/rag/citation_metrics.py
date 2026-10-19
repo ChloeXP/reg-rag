@@ -87,6 +87,9 @@ def structured_scores(rec: dict) -> dict:
     }
     if st["n_attempts"] > 1:
         out["retry_success"] = float(st["status"] == "retried_ok")
+    if st["status"] != "fallback":  # 7.8 policy: answers kept despite a dropped id / the length
+        out["dropped_invalid"] = float(bool(st.get("dropped")))
+        out["over_length"] = float(bool(st.get("over_length")))
     return out
 
 
@@ -114,4 +117,4 @@ def item_extra_scores(g: dict, variants: list[dict], passages: list[list[dict]],
 
 EXTRA_KEYS = ["cited_n", "cite_share", "cites_evidence", "cite_precision", "cites_poison",
               "invalid_cite", "answerable_acc", "json_first_ok", "retried", "retry_success",
-              "fallback", "truncated"]  # fmt: skip
+              "fallback", "truncated", "dropped_invalid", "over_length"]  # fmt: skip
