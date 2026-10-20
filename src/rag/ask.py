@@ -18,6 +18,7 @@ from datetime import UTC, datetime
 
 from rag.config import PROJECT_ROOT, load_config
 from rag.generate import build_prompt, load_prompt, parse_citations
+from rag.guardrails import refusal_fields, relevance_gate
 from rag.llm import generate
 from rag.retrieve import search
 from rag.structured_gen import run as run_structured
@@ -26,6 +27,9 @@ from rag.structured_gen import run as run_structured
 TIMING = {"llm_s": "latency_s", "load_s": "load_s", "prefill_s": "prefill_s",
           "decode_s": "decode_s", "prompt_tokens": "prompt_tokens",
           "output_tokens": "output_tokens"}  # fmt: skip
+# Step 8.1: a guardrail refused before generation -> no LLM time, no tokens (not "unknown")
+NO_LLM = {"llm_s": 0.0, "load_s": None, "prefill_s": None, "decode_s": None,
+          "prompt_tokens": None, "output_tokens": 0}  # fmt: skip
 
 
 def git_commit() -> str:
@@ -51,10 +55,17 @@ def answer(
     question: str, hits: list[dict], cfg: dict, lang: str | None = None, retrieve_s: float = 0.0
 ) -> dict:
     """Generation half of ask(): the caller supplies the passages (step 6.6b: the evaluation
-    inserts a poisoned passage for context-injection items before calling this)."""
+    inserts a poisoned passage for context-injection items before calling this).
+
+    Step 8: input guardrails run first; record["guardrails"] logs every verdict (#124)."""
     prompt = load_prompt(cfg)
     built = build_prompt(question, hits, prompt, cfg, lang)
-    if prompt["output"] == "json":  # step 7: JSON mode + validation + retry + fallback
+    gates = [relevance_gate(hits, cfg)]
+    if not all(v["passed"] for v in gates):  # refuse without calling the LLM (8.1, #140)
+        out = {**NO_LLM, "model": cfg["llm"]["model"]}
+        checks = refusal_fields(prompt, built["language"])
+        out["text"] = checks.pop("answer")
+    elif prompt["output"] == "json":  # step 7: JSON mode + validation + retry + fallback
         checks = run_structured(built, hits, prompt, cfg)
         attempts = checks["structured"]["attempts"]
         # One answer may cost several LLM calls: timings and tokens are summed over attempts
@@ -96,6 +107,10 @@ def answer(
         ],  # fmt: skip
         "answer": out["text"],
         **checks,
+        "guardrails": {
+            "llm_called": all(v["passed"] for v in gates),  # config.model = configured, not run
+            "input": gates,
+        },
         "retrieve_s": retrieve_s,
         "llm_s": out["llm_s"],
         "load_s": out["load_s"],
@@ -123,13 +138,18 @@ def show(rec: dict) -> None:
     c = rec["config"]
     print(f"\n{rec['answer']}\n")
     for ref in rec["references"]:
-        fmt = "P{}" if "structured" in rec else "[{}]"  # v2 labels passages P1..Pk
+        fmt = "P{}" if rec.get("structured") else "[{}]"  # v2 labels passages P1..Pk
         n = "".join(fmt.format(i) for i in ref["n"])
         print(f"  {n} {ref['label']}" + (f" ({ref['pages']})" if ref["pages"] else ""))
+    gr = rec.get("guardrails") or {"llm_called": True, "input": []}
+    for v in gr["input"]:
+        if not v["passed"]:
+            print(f"  GUARDRAIL {v['name']}: top score {v['top_score']} < {v['threshold']}"
+                  " -> refused, no LLM call")  # fmt: skip
     flags = [f"invalid citations {rec['invalid']}"] if rec["invalid"] else []
     flags += ["no citation"] if rec["uncited"] else []
     flags += [f"{rec['other_brackets']} non-numeric [..]"] if rec["other_brackets"] > 0 else []
-    if "structured" in rec:
+    if rec.get("structured"):  # None when a guardrail refused (no JSON attempt)
         st = rec["structured"]
         flags += [f"structured {st['status']} after {st['n_attempts']} attempt(s), "
                   f"first {st['first_status']}"] if st["status"] != "ok" else []  # fmt: skip

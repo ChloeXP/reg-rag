@@ -32,6 +32,14 @@ llm:
       length: flag                   # P84: a complete answer > answer_max_chars is kept (flagged)
       invalid_citations: drop        # P82: drop non-existent ids if >= 1 valid id remains
 
+guardrails:            # step 8: pure functions in rag.guardrails, shared by rag.ask, eval and API
+  relevance:           # 8.1 (decision 8.0-B): refuse WITHOUT an LLM call if the best passage is
+    enabled: true      # clearly off-topic. Calibrated on dev run logs only (no LLM re-run, #133)
+    score_model: BAAI/bge-reranker-v2-m3   # the threshold lives on THIS model's scale (#138)
+    min_top_score: 0.05  # dev top-1: lowest answerable 0.213 (4x margin); no_answer G035-G037
+                         # 0.007-0.015 caught; G032 / G033 (0.75-0.81) cannot be caught by any
+                         # threshold (same words, other meaning) -> output-side checks (8.2)
+
 generation:            # step 4
   default_language: en # used when the question has no FR/EN signal (e.g. "CRR Article 395")
 
