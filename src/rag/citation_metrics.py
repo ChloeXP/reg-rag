@@ -19,6 +19,11 @@ Item-level scores (averaged by answer_metrics.aggregate_present over the items w
     retry_success    retry fixed it (retried items only)
     fallback         no valid attempt         truncated an attempt hit num_predict (P78)
 
+  guardrails (step 8, records that carry record["guardrails"])
+    gated            an input guardrail refused before the LLM (8.1 relevance gate)
+    mention_flag     the output check found a name not in the cited passages (8.2, any action)
+    mention_refused  ... and replaced the answer by the refusal (refuse_on, decision 8.2b-C)
+
 A citation that exists is not a citation that supports (P79): cites_evidence / cite_precision
 use the location spans of the golden set, a floor-check like every rule metric here (#62).
 """
@@ -93,6 +98,19 @@ def structured_scores(rec: dict) -> dict:
     return out
 
 
+def guardrail_scores(rec: dict) -> dict:
+    gr = rec.get("guardrails")
+    if not gr:
+        return {}
+    out = [v for v in gr.get("output", []) if v.get("enabled")]
+    return {
+        "gated": float(not gr["llm_called"]),
+        **({"mention_flag": float(any(not v["passed"] for v in out)),
+            "mention_refused": float(any(v.get("action") == "refuse" for v in out))}
+           if gr["llm_called"] and out else {}),
+    }  # fmt: skip
+
+
 WORST = {"invalid_cite": max, "answerable_acc": min, "cites_poison": max}  # over positions
 
 
@@ -105,7 +123,7 @@ def item_extra_scores(g: dict, variants: list[dict], passages: list[list[dict]],
     per = []
     for v, ps in zip(variants, passages, strict=True):
         s = citation_scores(g, v["record"], ps, evidence_positions(ps, g, rank_of))
-        per.append({**s, **structured_scores(v["record"])})
+        per.append({**s, **structured_scores(v["record"]), **guardrail_scores(v["record"])})
     out: dict[str, float] = {}
     for key in {k for s in per for k in s}:
         vals = [s[key] for s in per if key in s]
@@ -117,4 +135,5 @@ def item_extra_scores(g: dict, variants: list[dict], passages: list[list[dict]],
 
 EXTRA_KEYS = ["cited_n", "cite_share", "cites_evidence", "cite_precision", "cites_poison",
               "invalid_cite", "answerable_acc", "json_first_ok", "retried", "retry_success",
-              "fallback", "truncated", "dropped_invalid", "over_length"]  # fmt: skip
+              "fallback", "truncated", "dropped_invalid", "over_length",
+              "gated", "mention_flag", "mention_refused"]  # fmt: skip

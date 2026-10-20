@@ -18,7 +18,7 @@ from datetime import UTC, datetime
 
 from rag.config import PROJECT_ROOT, load_config
 from rag.generate import build_prompt, load_prompt, parse_citations
-from rag.guardrails import refusal_fields, relevance_gate
+from rag.guardrails import output_guardrails, refusal_fields, relevance_gate
 from rag.llm import generate
 from rag.retrieve import search
 from rag.structured_gen import run as run_structured
@@ -57,7 +57,8 @@ def answer(
     """Generation half of ask(): the caller supplies the passages (step 6.6b: the evaluation
     inserts a poisoned passage for context-injection items before calling this).
 
-    Step 8: input guardrails run first; record["guardrails"] logs every verdict (#124)."""
+    Step 8: input guardrails run first, output guardrails on the generated answer;
+    record["guardrails"] logs every verdict (#124)."""
     prompt = load_prompt(cfg)
     built = build_prompt(question, hits, prompt, cfg, lang)
     gates = [relevance_gate(hits, cfg)]
@@ -77,6 +78,11 @@ def answer(
         out = generate(built["user"], cfg, system=built["system"])
         out["llm_s"] = out["latency_s"]
         checks = parse_citations(out["text"], hits, prompt)
+    checks = {"answer": out["text"], **checks}
+    llm_called = all(v["passed"] for v in gates)
+    outputs: list[dict] = []
+    if llm_called:  # 8.2: names in the answer vs its cited passages (may replace the answer)
+        checks, outputs = output_guardrails(checks, hits, prompt, built["language"], cfg)
 
     r, llm = cfg["retrieval"], cfg["llm"]
     return {
@@ -105,11 +111,11 @@ def answer(
             }
             for h in hits
         ],  # fmt: skip
-        "answer": out["text"],
-        **checks,
+        **checks,  # answer first
         "guardrails": {
-            "llm_called": all(v["passed"] for v in gates),  # config.model = configured, not run
+            "llm_called": llm_called,  # config.model = configured model, not proof it ran
             "input": gates,
+            "output": outputs,
         },
         "retrieve_s": retrieve_s,
         "llm_s": out["llm_s"],
@@ -146,6 +152,10 @@ def show(rec: dict) -> None:
         if not v["passed"]:
             print(f"  GUARDRAIL {v['name']}: top score {v['top_score']} < {v['threshold']}"
                   " -> refused, no LLM call")  # fmt: skip
+    for v in gr.get("output", []):
+        if not v["passed"]:
+            print(f"  GUARDRAIL {v['name']}: not in the cited passages {v['unsupported']}"
+                  f" -> {v['action']}")  # fmt: skip
     flags = [f"invalid citations {rec['invalid']}"] if rec["invalid"] else []
     flags += ["no citation"] if rec["uncited"] else []
     flags += [f"{rec['other_brackets']} non-numeric [..]"] if rec["other_brackets"] > 0 else []

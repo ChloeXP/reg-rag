@@ -39,6 +39,29 @@ guardrails:            # step 8: pure functions in rag.guardrails, shared by rag
     min_top_score: 0.05  # dev top-1: lowest answerable 0.213 (4x margin); no_answer G035-G037
                          # 0.007-0.015 caught; G032 / G033 (0.75-0.81) cannot be caught by any
                          # threshold (same words, other meaning) -> output-side checks (8.2)
+  mentions:            # 8.2 output side: every regulation / article number the answer NAMES must
+    enabled: true      # appear in the passages it CITES (text, header or work). Necessary, not
+                       # sufficient: proves the name is in the evidence, not that it is used
+                       # correctly (P64). Measured on 4 dev runs before choosing the action (8.2a)
+    refuse_on: out_of_corpus  # decision 8.2b-C. never = flag only | out_of_corpus = replace the
+                       # answer by the refusal when it names a regulation that is NOT in the corpus
+                       # (no `works`) and not in its cited passages (dev: G034 GDPR fine, G037 SFDR,
+                       # both fabrications), flag the rest | any = refuse on any unsupported name
+    article: '(?i)\b(?:articles?|art\.)\s+(\d+[a-z]?)\b((?:\s*(?:,|et|and|à|to|-|–)\s*\d+[a-z]?\b)*)'
+    regulations:       # group: works = work_id regex of the corpus documents that ARE this text
+                       # (no works = not in the corpus); aliases = how a text names it (FR / EN)
+      dora: {works: '^dora$', aliases: ['\bDORA\b', '2022/2554', '(?i)résilience opérationnelle numérique', '(?i)digital operational resilience']}
+      crr: {works: '^crr$', aliases: ['\bCRR\b', '575/2013', '(?i)capital requirements regulation']}
+      ai_act: {works: '^ai_act$', aliases: ['(?i)\bAI Act\b', '2024/1689', '(?i)règlement sur l.(?:IA|intelligence artificielle)', '(?i)artificial intelligence act', '(?i)législation sur l.IA']}
+      eba: {works: '^eba_', aliases: ['\bEBA\b', '\bABE\b', '(?i)european banking authority', '(?i)autorité bancaire européenne', '1093/2010']}
+      acpr: {works: '^acpr_', aliases: ['\bACPR\b', '(?i)autorité de contrôle prudentiel']}
+      crd: {aliases: ['\bCRD\b', '2013/36', '(?i)capital requirements directive']}
+      gdpr: {aliases: ['\bGDPR\b', '\bRGPD\b', '2016/679', '(?i)general data protection regulation', '(?i)règlement général sur la protection des données']}
+      sfdr: {aliases: ['\bSFDR\b', '2019/2088', '(?i)sustainability.related disclosures']}
+      mica: {aliases: ['\bMiCA\b', '2023/1114', '(?i)markets in crypto.assets', '(?i)marchés de crypto.actifs']}
+      nis2: {aliases: ['\bNIS ?2\b', '2022/2555']}
+      mifid: {aliases: ['\bMiFID(?: ?II)?\b', '2014/65']}
+      psd2: {aliases: ['\bPSD ?2\b', '\bDSP ?2\b', '2015/2366']}
 
 generation:            # step 4
   default_language: en # used when the question has no FR/EN signal (e.g. "CRR Article 395")

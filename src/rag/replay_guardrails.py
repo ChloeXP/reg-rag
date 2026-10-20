@@ -1,4 +1,4 @@
-"""Step 8.1c - replay the CURRENT input guardrails over finished e2e runs (no model call, #133).
+"""Step 8.1c / 8.2b - replay the CURRENT guardrails over finished e2e runs (no model call, #133).
 
 Run:  uv run python -m rag.replay_guardrails runs/eval/<run dir> [more dirs] [--no-mlflow]
 
@@ -8,7 +8,10 @@ exact: a record the gates pass keeps its logged answer (+ the verdicts); a recor
 the refusal rag.ask would have returned (same functions: rag.guardrails + rag.ask.NO_LLM). The
 gates are evaluated on the run's OWN retrieval config (the scale its scores were produced on). A
 replay that would let through a question the run refused before the LLM is impossible (that
-answer was never generated) and is refused. Re-scored like rag.rescore; the original directory is
+answer was never generated) and is refused. Output guardrails (8.2) are deterministic functions
+of the generated answer and of the passages it cites (rebuilt exactly, replay_policy.passages_for):
+a record an output guardrail already replaced is first restored from its verdict, then
+re-checked. Re-scored like rag.rescore; the original directory is
 never modified (#87): a new one <timestamp>__<tag>-gr-<suffix> carries meta.replayed_from and
 meta.guardrails.
 """
@@ -29,12 +32,20 @@ from rag.config import PROJECT_ROOT, load_config
 from rag.eval_answers import summarize as summarize_e2e
 from rag.eval_retrieval import ranker
 from rag.generate import load_prompt
-from rag.guardrails import refusal_fields, relevance_gate
+from rag.guardrails import (
+    ANSWER_FIELDS,
+    output_guardrails,
+    refusal_fields,
+    relevance_gate,
+    undo_output_guardrails,
+)
+from rag.replay_policy import passages_for
 from rag.rescore import load_golden, rescore_e2e
 from rag.tracking import file_md5, log_run
 
 KEYS = ["refused", "mentions_absent", "false_refusal", "resisted", "key_fact_recall",
-        "all_facts", "answerable_acc", "citation_ok"]  # fmt: skip
+        "all_facts", "answerable_acc", "citation_ok", "mention_flag",
+        "mention_refused"]  # fmt: skip
 
 
 def apply_input_guardrails(record: dict, gate_cfg: dict, prompt: dict) -> dict:
@@ -45,16 +56,30 @@ def apply_input_guardrails(record: dict, gate_cfg: dict, prompt: dict) -> dict:
     if old and not old["llm_called"] and passed:
         raise ValueError("these guardrails let through a question the run refused before the "
                          "LLM: its answer was never generated (not replayable)")  # fmt: skip
-    rec = {**record, "guardrails": {"llm_called": passed, "input": gates}}
+    rec = {**record, "guardrails": {"llm_called": passed, "input": gates, "output": []}}
     if not passed:
         rec.update(NO_LLM)
         rec.update(refusal_fields(prompt, record["language"]))
     return rec
 
 
+def apply_guardrails(record: dict, gate_cfg: dict, prompt: dict, passages: list[dict]) -> dict:
+    """Input then output guardrails, as rag.ask.answer runs them (passages = as the model saw)."""
+    rec = apply_input_guardrails(undo_output_guardrails(record), gate_cfg, prompt)
+    if not rec["guardrails"]["llm_called"]:
+        return rec
+    fields = {k: rec[k] for k in ANSWER_FIELDS} | {"structured": rec.get("structured")}
+    new, outputs = output_guardrails(fields, passages, prompt, rec["language"], gate_cfg)
+    rec = {**rec, **new}
+    rec["guardrails"] = {**rec["guardrails"], "output": outputs}
+    return rec
+
+
 def suffix(guardrails: dict) -> str:
-    rel = guardrails["relevance"]
-    return "gr-" + (f"rel{rel['min_top_score']}" if rel["enabled"] else "none")
+    rel, men = guardrails["relevance"], guardrails["mentions"]
+    parts = [f"rel{rel['min_top_score']}" if rel["enabled"] else "rel-off"]
+    parts.append(f"men-{men['refuse_on']}" if men["enabled"] else "men-off")
+    return "gr-" + "-".join(parts)
 
 
 def replay(run: Path, cfg: dict, golden: dict, chunks: dict) -> Path:
@@ -70,8 +95,10 @@ def replay(run: Path, cfg: dict, golden: dict, chunks: dict) -> Path:
     gate_cfg = {**run_cfg, "guardrails": cfg["guardrails"]}  # run's retrieval = run's scale
     rows = [json.loads(x) for x in (run / "answers.jsonl").read_text(encoding="utf-8").splitlines()]
     for r in rows:
+        g = golden[r["id"]]
         for v in r["variants"]:
-            v["record"] = apply_input_guardrails(v["record"], gate_cfg, prompt)
+            passages = passages_for(v["record"], g, chunks)  # text hashes checked
+            v["record"] = apply_guardrails(v["record"], gate_cfg, prompt, passages)
     rescore_cfg = {**run_cfg, "eval": {**run_cfg["eval"],
                    **{k: cfg["eval"][k] for k in ("hit_rule", "span")}}}  # fmt: skip
     rows = rescore_e2e(rows, golden, chunks, ranker(rescore_cfg, [golden[r["id"]] for r in rows]))
@@ -113,9 +140,12 @@ def print_changes(run: Path, out: Path) -> None:
     for x in (out / "answers.jsonl").open():
         r = json.loads(x)
         gated = [v["variant"] for v in r["variants"] if not v["record"]["guardrails"]["llm_called"]]
-        changed = {k: (round(old[r["id"]]["scores"].get(k, -1), 2), round(v, 2))
-                   for k, v in r["scores"].items()
-                   if k in KEYS and old[r["id"]]["scores"].get(k) != v}  # fmt: skip
+        prev = old[r["id"]]["scores"]
+        changed = {
+            k: ("-" if k not in prev else round(prev[k], 2), round(v, 2))
+            for k, v in r["scores"].items()
+            if k in KEYS and prev.get(k) != v and not (k not in prev and v == 0)
+        }  # a metric new in this run at 0 = nothing happened
         if gated or changed:
             print(f"     {r['id']}: gated {gated or '-'}  {changed or 'scores unchanged'}")
 
