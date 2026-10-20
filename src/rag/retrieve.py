@@ -11,8 +11,11 @@ from rag.embed import embed_query
 from rag.index import DENSE, SPARSE, collection_name, get_client
 from rag.rerank import rerank
 
+# "strategy" is read by spans.body() to strip the structure header before span scoring: without
+# it, live runs scored header + body while rag.rescore (chunks.parquet rows) scored the body only
+# -> context_hit differed between a run and its re-score (P89, G025: long ACPR cover headers).
 HIT_FIELDS = ["chunk_id", "doc_id", "work_id", "language", "kind", "article", "section",
-              "page_start", "page_end", "text"]  # fmt: skip
+              "page_start", "page_end", "text", "strategy"]  # fmt: skip
 
 
 def _filter(filters: dict | None) -> models.Filter | None:

@@ -100,3 +100,15 @@ def test_default_reranks():
         1 <= h["first_stage_rank"] <= CFG_DEFAULT["retrieval"]["rerank"]["candidates"] for h in hits
     )
     assert [h["score"] for h in hits] == sorted((h["score"] for h in hits), reverse=True)
+
+
+def test_hits_carry_strategy_so_span_scoring_matches_rescore():  # P89
+    from rag.spans import body
+
+    cfg = load_config()
+    cfg["retrieval"]["rerank"]["enabled"] = False
+    cfg["retrieval"]["mode"] = "bm25"  # no model to load; the payload projection is shared
+    hits = search("notification des incidents majeurs liés aux TIC", cfg)
+    rows = {r["chunk_id"]: r for r in pq.read_table(PARQUET).to_pylist()}
+    assert hits and all(h["strategy"] == cfg["retrieval"]["strategy"] for h in hits)
+    assert all(body(h) == body(rows[h["chunk_id"]]) for h in hits)  # live == rescore input
