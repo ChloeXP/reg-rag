@@ -20,7 +20,9 @@ llm:
   temperature: 0.0                   # deterministic answers -> reproducible eval
   num_ctx: 8192                      # Ollama default 4096 silently truncates long RAG prompts
   timeout_s: 180
-  prompt_version: v1                 # prompts/<version>.yaml (step 4.2); logged with every answer
+  prompt_version: v3                 # prompts/<version>.yaml, logged with every answer. v1 -> v3 in
+                                     # step 7.11 (decision 7.11-A, #105): JSON + completeness; on the
+                                     # 7b validation model kf 0.68 -> 0.82. Revert: set v1
   structured:                        # step 7: only used by prompts with `output: json` (v2+)
     num_predict: 1024                # output token cap (P78). 640 -> 1024 in 7.7: v3 allows
                                      # 3000-char answers (~750 tokens); v2 never exceeded 372

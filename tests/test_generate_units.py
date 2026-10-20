@@ -16,7 +16,7 @@ from rag.generate import (
 )
 
 CFG = load_config()
-PROMPT = load_prompt(CFG)
+PROMPT = load_prompt(CFG, "v1")  # step-4 tests: pinned to v1 (default is v3 since 7.11)
 
 
 def hit(cid="dora_fr::structure::0157", text="[DORA · Article 19 Déclaration] 1. Les entités…",

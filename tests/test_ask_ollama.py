@@ -44,7 +44,8 @@ def test_q1_french_answer_cites_dora_article_19():
     assert rec["language"] == "fr" and not rec["is_refusal"]
     assert rec["invalid"] == [] and not rec["uncited"]
     assert any(r["work_id"] == "dora" and r["article"] == "19" for r in rec["references"])
-    assert rec["config"]["prompt_version"] == "v1" and rec["prompt_tokens"] > 1000
+    assert rec["config"]["prompt_version"] == CFG["llm"]["prompt_version"]  # default (v3 in 7.11)
+    assert rec["prompt_tokens"] > 1000
 
 
 @pytest.mark.xfail(reason="P39: CRR Art. 395 para 1 (25 % limit) is not in the top-5 chunks")

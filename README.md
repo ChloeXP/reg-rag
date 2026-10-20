@@ -61,7 +61,7 @@ uv run python scripts/smoke_ask.py --models qwen2.5:3b qwen2.5:7b   # 5 smoke qu
 
 # 9. Golden set (step 5): rebuild eval/golden_set.jsonl from its sources and re-check it
 uv run python -m rag.golden --check-spec     # blueprint quotas vs corpus
-uv run python -m rag.build_golden            # 60 items, golden-v2 md5 1c0cb11a... (deterministic)
+uv run python -m rag.build_golden            # 60 items, golden-v3 md5 ab578366... (deterministic)
 
 # 11. Experiments (step 6): every run -> runs/eval/<time>__<tag>/ + an MLflow entry
 uv run python -m rag.eval_retrieval --set retrieval.mode=hybrid --tag hybrid   # retrieval only, ~1 min
@@ -70,10 +70,13 @@ uv run python -m rag.compare_runs runs/eval/<A> runs/eval/<B>                   
 uv run --group eval python -m rag.ragas_eval runs/eval/<e2e run> --subset --mlflow  # RAGAS, ~3 min/item
 uv run python -m rag.rescore runs/eval/<run>   # re-score a finished run with the current golden set
 uv run python scripts/step6_report.py          # the result tables below
+uv run python -m rag.ask --prompt v1 "..."      # step 7: default prompt is v3 (JSON); v1 = free text
+uv run python -m rag.replay_policy runs/eval/<run>  # re-check logged attempts under the current output policy
+uv run python scripts/step7_report.py          # step 7 tables
 
 # 10. Tests: unit (no data) + data-quality (corpus) + integration (Qdrant, Ollama running)
-uv run pytest -q                       # 199 passed, 4 xfailed, 1 xpassed (known limits, see below)
-uv run pytest -q -m "not ollama"       # skip the LLM calls (~45 s)
+uv run pytest -q                       # unit + data + integration (known limits are xfail)
+uv run pytest -q -m "not ollama"       # skip the LLM calls: 265 passed, 3 xfailed (~40 s)
 ```
 
 - Qdrant dashboard: http://localhost:6333/dashboard
@@ -377,3 +380,111 @@ p ≤ 0.007); on a 12-item subset, RAGAS faithfulness moves from 0.81 to 0.91 (n
 - Not run yet: chunk sizes 256 / 1024, multilingual-e5, hybrid variants (weighted RRF, BM25 only
   within the question's language, article-number routing), query decomposition, and re-chunking
   the ACPR paper whose cover title leaked into 116 card headers.
+
+## Structured output (step 7) — tag `golden-v3`, default prompt `v3`
+
+Question: can the model return an answer a program can rely on — valid JSON, citations that
+exist, an explicit "answerable" decision — without losing content? Dev split only (40 items);
+every comparison below uses the same retrieved passages per model (checked item by item).
+
+### What was built
+
+- **Two schemas** ([`src/rag/structured.py`](src/rag/structured.py)). The model fills a small
+  `ModelAnswer` (`citations`, `answerable`, `answer`, `confidence`), sent to Ollama as a JSON
+  schema; it cites passages by id (`"P1"`…`"P5"`) and never copies metadata. Code resolves the
+  ids into the API-level `Answer` / `Citation` (doc_id, article, chunk_id) from the retrieved
+  hits. Field order is generation order: evidence, then verdict, then answer.
+- **Validation in two kinds** ([`src/rag/structured_gen.py`](src/rag/structured_gen.py)):
+  schema errors (invalid or cut-off JSON, wrong type, `answerable` contradicting `citations`, a
+  refusal sentence with `answerable: true`) are retried once with the errors fed back; a cited id
+  that is not among the passages is a grounding error. No valid attempt → a fallback message that
+  is *not* the refusal sentence, so a failure never earns the credit of a correct refusal.
+- **A measured output policy**: a complete answer longer than the prompt's limit is kept (and
+  flagged); a non-existent id is dropped when at least one valid citation remains. Both rules were
+  chosen by replaying the logged attempts of finished runs under the new policy
+  ([`rag.replay_policy`](src/rag/replay_policy.py), no model call): under the first policy they
+  had discarded two answers that were fully correct.
+- **Versioned prompts**: [`prompts/v2.yaml`](prompts/v2.yaml) (JSON) and
+  [`prompts/v3.yaml`](prompts/v3.yaml) (= v2 + one change: list every element the passages give).
+  The logged hash of a prompt covers the system and user text, the retry template and the JSON
+  schema sent to Ollama; v1's hash recipe is unchanged, so step 4–6 logs stay verifiable.
+- **Citation metrics for every version** ([`src/rag/citation_metrics.py`](src/rag/citation_metrics.py)):
+  passages cited, whether they hold the evidence (same span rule as "evidence in context"),
+  non-existent citations in the *first* answer, citing the injected passage, plus fallback,
+  retry and truncation rates. Computed with the same code on the v1 runs by re-scoring.
+- **golden-v3**: a second symmetric audit (93 answers of v1 / v2 / v3) gave 6 more scoring
+  patches, e.g. a transitional range « de 4 % à 4,5 % » no longer counts as the 4.5 % minimum,
+  and a key fact that the question itself contained (« modèles NI ») now needs the negation the
+  source states. A new test checks that no key-fact regex is satisfied by its own question.
+
+### Results (dev, golden-v3, tables generated by `scripts/step7_report.py`)
+
+| Content and safety (dev, 40 items) | key-fact recall | all key facts | refused answerable | refused no-answer | talks about the absent fact | resisted injection |
+|---|---|---|---|---|---|---|
+| 3b · v1 free text | 0.74 | 0.58 | 0 / 31 | 2 / 6 | 0 / 6 | 2 / 3 |
+| 3b · v2 JSON | 0.70 | 0.48 | 0 / 31 | 3 / 6 | 0 / 6 | 2 / 3 |
+| 3b · v3 JSON + completeness | 0.76 | 0.55 | 0 / 31 | 2 / 6 | 1 / 6 | 2 / 3 |
+| 7b · v1 free text | 0.68 | 0.48 | 3 / 31 | 6 / 6 | 0 / 6 | 3 / 3 |
+| 7b · v3 JSON + completeness | 0.82 | 0.58 | 0 / 31 | 5 / 6 | 1 / 6 | 3 / 3 |
+
+| Traceability, robustness, cost | valid citations | non-existent citation (1st answer) | passages cited | cited passages holding evidence | cites the injected passage | fallback | retries (fixed) | answer length (chars) | s / question |
+|---|---|---|---|---|---|---|---|---|---|
+| 3b · v1 free text | 0.84 | 6 / 40 | 1.2 | 0.80 | 0 / 1 | — | — | 716 | 19.3 |
+| 3b · v2 JSON | 1.00 | 1 / 40 | 2.9 | 0.67 | 1 / 1 | 0 / 40 | 0 (0) | 415 | 19.4 |
+| 3b · v3 JSON + completeness | 0.97 | 0 / 40 | 2.8 | 0.66 | 1 / 1 | 2 / 40 | 2 (0) | 954 | 29.8 |
+| 7b · v1 free text | 0.96 | 2 / 40 | 2.2 | 0.73 | 1 / 1 | — | — | 460 | 42.6 |
+| 7b · v3 JSON + completeness | 1.00 | 1 / 40 | 1.9 | 0.80 | 0 / 1 | 0 / 40 | 3 (3) | 828 | 41.5 |
+
+| Paired, better / worse (p) | key-fact recall | all key facts | non-existent citation (1st answer) | refused answerable |
+|---|---|---|---|---|
+| 3b · v1 free text → 3b · v2 JSON | 5 / 8 (p = 0.581) | 3 / 6 (p = 0.508) | 5 / 0 (p = 0.062) | 0 / 0 (p = 1.000) |
+| 3b · v1 free text → 3b · v3 JSON + completeness | 6 / 3 (p = 0.508) | 2 / 3 (p = 1.000) | 6 / 0 (p = 0.031) | 0 / 0 (p = 1.000) |
+| 3b · v2 JSON → 3b · v3 JSON + completeness | 8 / 4 (p = 0.388) | 3 / 1 (p = 0.625) | 1 / 0 (p = 1.000) | 0 / 0 (p = 1.000) |
+| 7b · v1 free text → 7b · v3 JSON + completeness | 11 / 3 (p = 0.057) | 6 / 3 (p = 0.508) | 2 / 1 (p = 1.000) | 3 / 0 (p = 0.250) |
+
+### What the experiments say
+
+1. **On the 7b validation model, v3 is better on content and on safety**: key-fact recall 0.68 →
+   0.82 (11 items better, 3 worse, p = 0.057), no answerable question refused (v1: 3), every
+   citation valid, the injected passage never cited, no fallback. Seconds per question did not
+   change (41.5 vs 42.6). The one regression: a no-answer question about the CRR "output floor"
+   was answered with a different floor (a liquidity horizon) found in the passages.
+2. **On 3b, JSON changes the writing, not just the wrapper**: v2 answers were 42 % shorter than
+   v1 (415 vs 716 characters) and the items that lost key facts had omitted content (a list cut after the first paragraph;
+   "four levels of explanation" announced but not named). v3 asks for every element and recovers
+   the content (0.76 vs 0.74 for v1, not significant), at a cost: answers 33 % longer than v1
+   (954 characters), two generations that ran until the token cap (one repeating the same
+   sentence), and one invented answer on a no-answer question (a list of CRR disclosure items
+   presented as the SFDR's). The runaway generations and the invented list did not appear with
+   7b, which refused the SFDR question.
+3. **Traceability improves on both models**: non-existent citations in the first answer go from
+   6 / 40 (3b v1) to 0–1 / 40 (6 items better, 0 worse, p = 0.031 for v1 → v3; with three 3b
+   comparisons this is not significant after a Bonferroni correction).
+4. **Guardrails have to be measured on the model that runs them**: one retry with the errors fed
+   back fixed 0 of 4 failures in the original 3b runs (same output again, or longer after "too long") and 3 of 3 on
+   7b (all contradictions between `answerable` and `citations`). Constrained decoding enforced
+   `enum` and `pattern` but not `maxLength`; when a schema forbids what the model wants to write,
+   the model does not fail, it keeps generating — every structured call has a token cap.
+5. **`confidence` carries no signal here**: almost every answer says "high", including wrong ones,
+   so it is logged but not used for any decision.
+
+In one sentence: *with a JSON schema, a two-layer citation design and a policy chosen by replaying
+logged attempts, qwen2.5:7b's key-fact recall goes from 0.68 to 0.82 with no answerable question
+refused and every citation valid (dev, paired, p = 0.057); the same prompt on qwen2.5:3b keeps
+its content but can loop or invent on unanswerable questions.*
+
+### Limits
+
+- 40 dev items, one run per configuration at temperature 0: the 7b gain is close to, not past,
+  p = 0.05, and all-key-facts changes are not significant anywhere.
+- golden-v3 was written after reading these answers (symmetric audit, every patch with evidence,
+  one marked borderline); the test split was only checked mechanically (question text vs regex),
+  and 4 test key facts that the question already contains are listed for review before the final
+  test run.
+- The citation checks prove that a cited passage exists and whether it holds an expected
+  location, not that it supports each sentence; a v3 answer still attributed the definition of
+  high-risk AI to Articles 25 and 16 (3b).
+- The v2 / v3 3b numbers are policy replays of logged attempts; the policy was not re-run live on
+  3b. 7b v3 ran live with it.
+- The default model stays qwen2.5:3b for development speed; the validated configuration is
+  qwen2.5:7b + prompt v3.
